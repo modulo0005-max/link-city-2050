@@ -1,0 +1,5351 @@
+import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const PORT = 3000;
+
+function generateGameHtml() {
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LINK CITY 2050 - 밝은 2.5D 솔라펑크 스마트시티</title>
+  <style>
+    :root {
+      --bg-sky: linear-gradient(135deg, #E0F2FE 0%, #E8F5E9 40%, #F0FDF4 100%);
+      --card-bg: rgba(255, 255, 255, 0.88);
+      --card-sub: rgba(248, 250, 252, 0.95);
+      --border: #CBD5E1;
+      --border-accent: #0284C7;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --primary: #10B981;
+      --primary-dark: #059669;
+      --cyan: #0284C7;
+      --sky: #38BDF8;
+      --amber: #D97706;
+      --rose: #E11D48;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-sky);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Pretendard", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+      overflow-x: hidden;
+    }
+    .app-container {
+      width: 100%;
+      max-width: 1480px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Screen Transitions */
+    .screen { display: none; width: 100%; }
+    .screen.active { display: flex; flex-direction: column; align-items: center; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Buttons */
+    .btn {
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      color: #FFFFFF;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #34D399 0%, #10B981 100%);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+      transform: translateY(-1px);
+    }
+    .btn-cyan {
+      background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+      color: #FFFFFF;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+    }
+    .btn-cyan:hover {
+      background: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1.5px solid var(--border);
+      color: var(--text-main);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+    .btn-outline:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: #FFFFFF;
+      transform: translateY(-1px);
+    }
+    .btn-sm { padding: 8px 16px; font-size: 0.85rem; white-space: nowrap; }
+
+    /* TITLE SCREEN */
+    #screen-title {
+      text-align: center;
+      padding: 40px 20px;
+      max-width: 920px;
+      width: 100%;
+    }
+    .title-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 18px;
+      border-radius: 99px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      background: rgba(16, 185, 129, 0.15);
+      color: #047857;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      margin-bottom: 0;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .main-title {
+      font-size: 3.2rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #059669 0%, #0284C7 60%, #2563EB 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 14px;
+      letter-spacing: -0.03em;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      line-height: 1.6;
+      margin-bottom: 36px;
+    }
+    .difficulty-select-box {
+      background: var(--card-bg);
+      border: 1.5px solid rgba(255, 255, 255, 0.8);
+      border-radius: 24px;
+      padding: 26px;
+      width: 100%;
+      margin-bottom: 24px;
+      box-shadow: 0 16px 36px rgba(14, 116, 144, 0.1);
+      backdrop-filter: blur(12px);
+    }
+    .diff-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .diff-card {
+      background: #FFFFFF;
+      border: 2px solid #E2E8F0;
+      border-radius: 16px;
+      padding: 20px 14px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+    }
+    .diff-card:hover {
+      border-color: var(--cyan);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(2, 132, 199, 0.15);
+    }
+    .diff-card.selected {
+      border-color: var(--primary);
+      background: #F0FDF4;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    }
+    .diff-card .level-name { font-weight: 800; font-size: 1.2rem; margin-bottom: 4px; }
+    .diff-card .level-info { font-size: 0.82rem; color: var(--text-muted); }
+    .diff-card .time-tag {
+      margin-top: 10px;
+      display: inline-block;
+      font-size: 0.78rem;
+      color: var(--amber);
+      font-weight: 800;
+      background: #FEF3C7;
+      padding: 3px 9px;
+      border-radius: 6px;
+    }
+
+    /* PLAY SCREEN (Side-by-Side Wide Layout) */
+    #screen-play { width: 100%; max-width: 1440px; }
+    .hud {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1.5px solid rgba(255, 255, 255, 0.8);
+      border-radius: 18px;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(12px);
+    }
+    .hud-left { display: flex; align-items: center; gap: 24px; }
+    .city-badge {
+      font-weight: 900;
+      font-size: 1.25rem;
+      background: linear-gradient(135deg, #047857, #0284C7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      white-space: nowrap;
+    }
+    .hud-stats { display: flex; gap: 28px; }
+    .hud-stat-item { display: flex; flex-direction: column; }
+    .hud-stat-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; margin-bottom: 2px; }
+    .hud-stat-val { font-size: 1.4rem; font-weight: 900; }
+    .hud-stat-val.cost { color: var(--amber); }
+    .hud-stat-val.edges { color: #047857; }
+    .hud-stat-val.time { color: var(--rose); font-variant-numeric: tabular-nums; }
+    .hud-controls { display: flex; gap: 10px; }
+
+    /* Alert Banner */
+    #alertBanner {
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      animation: alertPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes alertPop {
+      0% { transform: scale(0.95); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    #alertBanner.cycle {
+      background: #FFE4E6;
+      border: 1.5px solid var(--rose);
+      color: #BE123C;
+      display: flex;
+      box-shadow: 0 4px 14px rgba(225, 29, 72, 0.15);
+    }
+
+    /* 2-Column Game Workspace (Left: Map / Right: Cards Side Panel) */
+    .game-workspace {
+      width: 100%;
+      display: flex;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    /* Left Map Canvas Wrapper */
+    .map-wrapper {
+      flex: 1 1 65%;
+      min-width: 0;
+      background: #C8E6C9; /* 베이스 에코 잔디 */
+      border: 2px solid #94A3B8;
+      border-radius: 22px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
+    }
+    svg#cityMap {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* 2.5D Edge Styles */
+    .edge-hitbox {
+      stroke: transparent;
+      stroke-width: 32px;
+      cursor: pointer;
+      stroke-linecap: round;
+    }
+    .edge-line {
+      pointer-events: none;
+      transition: stroke 0.3s ease, stroke-width 0.3s ease;
+    }
+    .edge-line.unbuilt {
+      stroke: #64748B;
+      stroke-width: 2.8;
+      stroke-dasharray: 6 6;
+      opacity: 0.8;
+    }
+    .edge-hitbox:hover + .edge-line.unbuilt {
+      stroke: #0284C7;
+      stroke-width: 4.2;
+      opacity: 1;
+    }
+    .edge-line.built {
+      stroke: #0284C7;
+      stroke-width: 5.5;
+      stroke-linecap: round;
+      filter: drop-shadow(0 2px 5px rgba(2, 132, 199, 0.6));
+      animation: buildPulse 0.4s ease-out;
+    }
+    @keyframes buildPulse {
+      0% { stroke: #38BDF8; stroke-width: 9; }
+      100% { stroke: #0284C7; stroke-width: 5.5; }
+    }
+    .edge-line.cycle-flash {
+      stroke: #E11D48 !important;
+      stroke-width: 8 !important;
+      filter: drop-shadow(0 0 10px #E11D48) !important;
+      animation: shake 0.3s ease;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+
+    /* Weight Tag (High Contrast Dark Navy Capsule Badge) */
+    .weight-badge {
+      pointer-events: none; /* 도로 클릭 영역 및 인접 요소 간섭 0% 보장 */
+      user-select: none;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .weight-bg {
+      fill: #0F172A; /* 짙은 네이비로 밝은 잔디 위에서 최고 대비 */
+      stroke: #38BDF8;
+      stroke-width: 2;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+      transition: all 0.2s;
+    }
+    .weight-bg.built {
+      fill: #064E3B;
+      stroke: #10B981;
+      stroke-width: 2.5;
+      filter: drop-shadow(0 4px 10px rgba(16, 185, 129, 0.4));
+    }
+    .weight-text {
+      font-size: 13.5px;
+      font-weight: 900;
+      fill: #FDE047; /* 눈에 쏙 들어오는 골드 옐로우 */
+      text-anchor: middle;
+      dominant-baseline: central;
+      letter-spacing: -0.02em;
+      pointer-events: none;
+    }
+    .weight-text.built {
+      fill: #6EE7B7;
+    }
+
+    /* Edge & Badge Map Highlight */
+    .edge-line.highlighted {
+      stroke: #0284C7 !important;
+      stroke-width: 6.5px !important;
+      filter: drop-shadow(0 0 10px #38BDF8) !important;
+    }
+    .weight-badge.highlighted {
+      transform: scale(1.22) !important;
+    }
+    .weight-badge.highlighted .weight-bg {
+      stroke: #FDE047 !important;
+      stroke-width: 3px !important;
+    }
+
+    /* RIGHT SIDE ROAD CARDS PANEL */
+    .cards-panel {
+      flex: 0 0 380px;
+      width: 380px;
+      background: var(--card-bg);
+      border: 1.5px solid var(--border);
+      border-radius: 22px;
+      padding: 16px 18px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      margin-top: 0;
+      max-height: 840px;
+      box-sizing: border-box;
+    }
+    .cards-header {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .cards-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cards-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cards-title-icon { font-size: 1.3rem; }
+    .cards-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+    }
+    .cards-count-badge {
+      font-size: 0.8rem;
+      font-weight: 800;
+      background: rgba(2, 132, 199, 0.12);
+      color: #0284C7;
+      padding: 3px 10px;
+      border-radius: 99px;
+      border: 1px solid rgba(2, 132, 199, 0.25);
+    }
+    .cards-sort-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .sort-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .sort-btn {
+      padding: 5px 11px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #FFFFFF;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .sort-btn:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+    .sort-btn.active {
+      background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+      color: #FFFFFF;
+      border-color: #0284C7;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+    }
+
+    /* Internal Card Scroll Area (화면 스크롤 흔들림 차단) */
+    .cards-scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+      margin-right: -2px;
+    }
+    .cards-scroll-area::-webkit-scrollbar {
+      width: 6px;
+    }
+    .cards-scroll-area::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 99px;
+    }
+    .cards-scroll-area::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 9px;
+    }
+
+    @media (max-width: 1100px) {
+      .game-workspace {
+        flex-direction: column;
+      }
+      .cards-panel {
+        width: 100%;
+        flex: 1 1 auto;
+        max-height: 520px;
+      }
+      .cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 600px) {
+      .cards-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ROAD CARD ITEM */
+    .road-card {
+      background: #FFFFFF;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 13px 15px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      user-select: none;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    }
+    .road-card:hover {
+      transform: translateY(-2px);
+      border-color: #38BDF8;
+      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.16);
+    }
+    .road-card.highlighted {
+      border-color: #0284C7 !important;
+      background: #F0F9FF !important;
+      box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.35), 0 8px 20px rgba(2, 132, 199, 0.22) !important;
+      transform: translateY(-3px) scale(1.02);
+    }
+    .road-card.built {
+      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+      border-color: #10B981;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.18);
+    }
+    .road-card.built:hover {
+      border-color: #059669;
+    }
+    .road-card.cycle-flash {
+      animation: cardShake 0.4s ease-in-out;
+      border-color: #E11D48 !important;
+      background: #FFE4E6 !important;
+      box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.4) !important;
+    }
+    @keyframes cardShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-nodes {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.95rem;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+    .node-chip {
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: #F1F5F9;
+      border: 1px solid #CBD5E1;
+      font-size: 0.85rem;
+      font-weight: 900;
+    }
+    .road-card.built .node-chip {
+      background: #A7F3D0;
+      border-color: #10B981;
+      color: #065F46;
+    }
+    .card-cost-badge {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 1px;
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #D97706; /* 골드 오렌지 */
+      font-variant-numeric: tabular-nums;
+    }
+    .road-card.built .card-cost-badge {
+      color: #059669; /* 건설 완료 시 에메랄드 */
+    }
+    .card-cost-unit {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .road-card.built .card-cost-unit {
+      color: #047857;
+    }
+
+    .card-mid {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .card-road-name {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-facility-flow {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 6px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.4);
+    }
+    .card-status-tag {
+      font-size: 0.74rem;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    .card-status-tag.unbuilt {
+      background: #F1F5F9;
+      color: #64748B;
+    }
+    .card-status-tag.built {
+      background: #10B981;
+      color: #FFFFFF;
+    }
+    .card-action-hint {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #0284C7;
+    }
+    .road-card.built .card-action-hint {
+      color: #DC2626; /* 클릭 시 철거 가능 힌트 */
+    }
+
+    /* 2.5D Building & Node Styles */
+    .node-group {
+      cursor: default;
+      pointer-events: none; /* 건물이 도로/뱃지 클릭을 가리지 않도록 보호 */
+    }
+    .node-ground-shadow {
+      fill: rgba(15, 23, 42, 0.24);
+      filter: blur(2.5px);
+    }
+    .node-base-plate {
+      fill: #FFFFFF;
+      stroke: #0284C7;
+      stroke-width: 2.2;
+      filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.18));
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .node-base-plate.connected {
+      fill: #ECFDF5;
+      stroke: #10B981;
+      stroke-width: 3.2;
+      filter: drop-shadow(0 6px 14px rgba(16, 185, 129, 0.45));
+    }
+    .node-label-bg {
+      fill: #0F172A;
+      stroke: #38BDF8;
+      stroke-width: 1.5;
+      rx: 6px;
+      filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
+    }
+    .node-label-bg.connected {
+      fill: #064E3B;
+      stroke: #34D399;
+    }
+    .node-label {
+      font-size: 12px;
+      font-weight: 800;
+      fill: #FFFFFF;
+      text-anchor: middle;
+      dominant-baseline: central;
+      letter-spacing: -0.01em;
+    }
+    .node-id-badge {
+      font-size: 10px;
+      font-weight: 900;
+      fill: #FFFFFF;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    /* City All Powered Glow */
+    .city-powered-on {
+      animation: cityPowerUp 1.2s ease-in-out forwards;
+    }
+    @keyframes cityPowerUp {
+      0% { filter: brightness(1); }
+      50% { filter: brightness(1.2) drop-shadow(0 0 35px #10B981); }
+      100% { filter: brightness(1.05) drop-shadow(0 0 20px rgba(16, 185, 129, 0.4)); }
+    }
+
+    /* RESULT SCREEN */
+    #screen-result {
+      text-align: center;
+      padding: 40px 20px;
+      max-width: 620px;
+    }
+    .result-card {
+      background: #FFFFFF;
+      border: 1.5px solid var(--border);
+      border-radius: 24px;
+      padding: 38px 30px;
+      width: 100%;
+      margin-bottom: 24px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.1);
+    }
+    .result-badge {
+      display: inline-block;
+      padding: 6px 22px;
+      border-radius: 99px;
+      font-size: 1rem;
+      font-weight: 900;
+      margin-bottom: 18px;
+    }
+    .result-badge.perfect {
+      background: #D1FAE5;
+      color: #065F46;
+      border: 1.5px solid #10B981;
+    }
+    .result-badge.success {
+      background: #E0F2FE;
+      color: #0369A1;
+      border: 1.5px solid #0284C7;
+    }
+    .result-badge.timeout {
+      background: #FFE4E6;
+      color: #9F1239;
+      border: 1.5px solid #F43F5E;
+    }
+    .result-title {
+      font-size: 2.3rem;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+    .result-subtitle {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      margin-bottom: 26px;
+      line-height: 1.6;
+    }
+    .result-stats-table {
+      background: #F8FAFC;
+      border-radius: 16px;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+      border: 1.5px solid #E2E8F0;
+    }
+    .result-stat-box { text-align: center; }
+    .result-stat-box .label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 700; }
+    .result-stat-box .val { font-size: 1.8rem; font-weight: 900; }
+
+    /* Multiplayer Mode Select */
+    .mode-select-box {
+      background: var(--card-bg);
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 22px 24px;
+      width: 100%;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      backdrop-filter: blur(10px);
+    }
+    .mode-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+      margin-bottom: 16px;
+    }
+    .mode-tab-btn {
+      padding: 12px 10px;
+      border-radius: 14px;
+      border: 1.5px solid var(--border);
+      background: #FFFFFF;
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+    }
+    .mode-tab-btn:hover {
+      border-color: var(--cyan);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.12);
+    }
+    .mode-tab-btn.active {
+      background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+      color: #FFFFFF;
+      border-color: #0284C7;
+      box-shadow: 0 6px 18px rgba(2, 132, 199, 0.28);
+      transform: translateY(-2px);
+    }
+    .mode-tab-icon { font-size: 1.4rem; }
+    .mode-tab-count { font-size: 0.8rem; font-weight: 800; opacity: 0.85; }
+    .mode-tab-name { font-size: 0.95rem; font-weight: 900; }
+    .mode-tab-btn.active .mode-tab-count { opacity: 1; color: #BAE6FD; }
+
+    .mode-desc-banner {
+      background: rgba(2, 132, 199, 0.07);
+      border: 1px solid rgba(2, 132, 199, 0.2);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      color: #0369A1;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Player Names Input Grid */
+    .player-inputs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .player-input-card {
+      display: flex;
+      align-items: center;
+      background: #F8FAFC;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 6px 12px;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .player-input-card:focus-within {
+      border-color: var(--cyan);
+      background: #FFFFFF;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
+    .player-p-badge {
+      font-size: 0.78rem;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #0F172A;
+      color: #FFFFFF;
+      white-space: nowrap;
+    }
+    .player-p-badge.p1 { background: #0284C7; }
+    .player-p-badge.p2 { background: #10B981; }
+    .player-p-badge.p3 { background: #D97706; }
+    .player-p-badge.p4 { background: #8B5CF6; }
+    .player-name-input {
+      border: none;
+      background: transparent;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      width: 100%;
+      outline: none;
+    }
+
+    /* HUD Player Turn Indicator */
+    .hud-player-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+      color: #FFFFFF;
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-weight: 800;
+      font-size: 0.92rem;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+      border: 1.5px solid #38BDF8;
+    }
+    .hud-player-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #38BDF8;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* Turn Transition Intermission Screen */
+    .intermission-card {
+      background: var(--card-bg);
+      border: 2px solid var(--cyan);
+      border-radius: 28px;
+      padding: 40px 32px;
+      max-width: 620px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(2, 132, 199, 0.2);
+      backdrop-filter: blur(16px);
+      animation: fadeIn 0.4s ease-out;
+    }
+    .intermission-icon {
+      font-size: 3.5rem;
+      margin-bottom: 12px;
+      animation: bounce 1.4s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .intermission-title {
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+    .intermission-secret-box {
+      background: #F0FDF4;
+      border: 1.5px solid #86EFAC;
+      border-radius: 14px;
+      padding: 12px 18px;
+      color: #166534;
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin: 18px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .next-player-banner {
+      background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+      color: #FFFFFF;
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(2, 132, 199, 0.3);
+    }
+    .next-player-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      opacity: 0.9;
+      margin-bottom: 4px;
+    }
+    .next-player-name {
+      font-size: 1.8rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+
+    /* Multiplayer Final Leaderboard */
+    .multi-leaderboard-card {
+      background: var(--card-bg);
+      border: 1.5px solid var(--border);
+      border-radius: 28px;
+      padding: 36px 30px;
+      width: 100%;
+      max-width: 900px;
+      box-shadow: 0 16px 48px rgba(15, 23, 42, 0.12);
+      backdrop-filter: blur(14px);
+    }
+    .podium-winner-banner {
+      background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+      border: 2px solid #F59E0B;
+      border-radius: 20px;
+      padding: 20px 24px;
+      text-align: center;
+      margin-bottom: 26px;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25);
+    }
+    .podium-winner-title {
+      font-size: 0.95rem;
+      font-weight: 900;
+      color: #B45309;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .podium-winner-name {
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: #78350F;
+      margin-bottom: 6px;
+    }
+    .podium-winner-stat {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #92400E;
+    }
+
+    /* Rank List */
+    .rankings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .rank-row-card {
+      background: #FFFFFF;
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      transition: all 0.2s;
+    }
+    .rank-row-card.rank-1 {
+      border-color: #F59E0B;
+      background: #FFFBEB;
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
+    }
+    .rank-row-card.rank-2 {
+      border-color: #94A3B8;
+      background: #F8FAFC;
+    }
+    .rank-row-card.rank-3 {
+      border-color: #D97706;
+      background: #FFFBF7;
+    }
+    .rank-row-card.uncompleted {
+      opacity: 0.8;
+      background: #FFF1F2;
+      border-color: #FECDD3;
+    }
+    .rank-badge-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 90px;
+    }
+    .rank-num-badge {
+      font-size: 1.3rem;
+      font-weight: 900;
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+    }
+    .rank-num-badge.r1 { background: #FEF3C7; color: #B45309; }
+    .rank-num-badge.r2 { background: #E2E8F0; color: #475569; }
+    .rank-num-badge.r3 { background: #FFEDD5; color: #9A3412; }
+    .rank-num-badge.r4 { background: #F1F5F9; color: #64748B; }
+    .tie-tag {
+      font-size: 0.72rem;
+      font-weight: 900;
+      background: #EDE9FE;
+      color: #6D28D9;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .rank-player-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .rank-player-name {
+      font-size: 1.15rem;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+    .rank-player-sub {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .rank-stats-group {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      text-align: right;
+    }
+    .rank-stat-col {
+      display: flex;
+      flex-direction: column;
+    }
+    .rank-stat-col .label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .rank-stat-col .val {
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+    .rank-status-pill {
+      padding: 4px 10px;
+      border-radius: 99px;
+      font-size: 0.8rem;
+      font-weight: 800;
+    }
+    .rank-status-pill.perfect {
+      background: #D1FAE5;
+      color: #065F46;
+      border: 1px solid #10B981;
+    }
+    .rank-status-pill.done {
+      background: #E0F2FE;
+      color: #0369A1;
+      border: 1px solid #0284C7;
+    }
+    .rank-status-pill.timeout {
+      background: #FFE4E6;
+      color: #BE123C;
+      border: 1px solid #F43F5E;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .main-title { font-size: 2.3rem; }
+      .diff-grid { grid-template-columns: 1fr; }
+      .hud { flex-direction: column; gap: 12px; }
+      .hud-left { flex-direction: column; gap: 10px; text-align: center; }
+      .mode-tabs { grid-template-columns: repeat(2, 1fr); }
+      .player-inputs-grid { grid-template-columns: 1fr; }
+      .rank-row-card { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .rank-stats-group { width: 100%; justify-content: space-between; }
+    }
+
+    /* ==============================================================
+       신규: 크루스칼 학습 모드 / 개념 가이드 / 리플레이 UI 스타일
+       ============================================================== */
+    
+    /* 1. 상단 대메뉴 모드 스위처 */
+    .main-mode-switcher {
+      display: inline-flex;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1.5px solid var(--border);
+      border-radius: 99px;
+      padding: 4px;
+      gap: 6px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    }
+    .main-mode-btn {
+      padding: 10px 22px;
+      border-radius: 99px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      background: transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .main-mode-btn.active {
+      background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+    }
+
+    /* 2. 개념 가이드 모달 (수학/과학 핵심 설명) */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: modalFadeIn 0.25s ease-out;
+    }
+    .modal-backdrop.active {
+      display: flex;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.97); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .concept-modal {
+      background: #FFFFFF;
+      border-radius: 24px;
+      max-width: 920px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px 32px;
+      box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+      border: 1.5px solid var(--border);
+    }
+    .concept-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1.5px solid #F1F5F9;
+    }
+    .concept-title {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .concept-close-btn {
+      background: #F1F5F9;
+      border: none;
+      font-size: 1.2rem;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .concept-close-btn:hover {
+      background: #E2E8F0;
+      color: var(--text-main);
+    }
+    .concept-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 768px) {
+      .concept-grid { grid-template-columns: 1fr; }
+    }
+    .concept-card {
+      background: #F8FAFC;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 16px;
+      padding: 18px 20px;
+      transition: all 0.2s;
+    }
+    .concept-card:hover {
+      border-color: #38BDF8;
+      background: #F0F9FF;
+      transform: translateY(-2px);
+    }
+    .concept-card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .concept-icon {
+      font-size: 1.4rem;
+    }
+    .concept-term {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0369A1;
+    }
+    .concept-subterm {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .concept-desc {
+      font-size: 0.92rem;
+      color: #334155;
+      line-height: 1.55;
+    }
+    .concept-formula {
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: rgba(2, 132, 199, 0.08);
+      border-radius: 8px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #0284C7;
+      display: inline-block;
+    }
+
+    /* 3. 학습 모드 전용 대화형 배너 & 사이클 퀴즈 */
+    .learn-interaction-bar {
+      width: 100%;
+      background: linear-gradient(135deg, #F0FDF4 0%, #E0F2FE 100%);
+      border: 1.5px solid #0284C7;
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 4px 16px rgba(2, 132, 199, 0.12);
+      animation: alertPop 0.3s ease;
+    }
+    .learn-bar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .learn-step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #0284C7;
+      color: #FFFFFF;
+      font-size: 0.85rem;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 99px;
+    }
+    .learn-guide-msg {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #0F172A;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .learn-quiz-box {
+      background: #FFFFFF;
+      border: 1.5px solid #CBD5E1;
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .quiz-question-text {
+      font-size: 0.96rem;
+      font-weight: 700;
+      color: #1E293B;
+    }
+    .quiz-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .quiz-btn {
+      padding: 9px 18px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .quiz-btn-accept {
+      background: #10B981;
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+    }
+    .quiz-btn-accept:hover {
+      background: #059669;
+      transform: translateY(-1px);
+    }
+    .quiz-btn-skip {
+      background: #EF4444;
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+    }
+    .quiz-btn-skip:hover {
+      background: #DC2626;
+      transform: translateY(-1px);
+    }
+    .quiz-feedback-box {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .quiz-feedback-box.correct {
+      background: #ECFDF5;
+      color: #065F46;
+      border: 1px solid #A7F3D0;
+    }
+    .quiz-feedback-box.wrong {
+      background: #FEF2F2;
+      color: #991B1B;
+      border: 1px solid #FECACA;
+    }
+
+    /* 지도 상 최소 가중치 후보 도로 강조 (펄스 애니메이션) */
+    .candidate-pulse {
+      stroke: #F59E0B !important;
+      stroke-width: 6 !important;
+      stroke-dasharray: 8 6 !important;
+      animation: pulseCandidate 1.2s infinite ease-in-out !important;
+    }
+    @keyframes pulseCandidate {
+      0%, 100% { stroke-opacity: 0.6; stroke-width: 5; }
+      50% { stroke-opacity: 1; stroke-width: 8; }
+    }
+    .road-card.candidate-target {
+      border-color: #F59E0B !important;
+      background: #FFFBEB !important;
+      box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35) !important;
+    }
+
+    /* 건너뛴(스킵된) 간선 스타일 */
+    .edge-skipped {
+      stroke: #94A3B8 !important;
+      stroke-width: 3 !important;
+      stroke-dasharray: 4 6 !important;
+      opacity: 0.55 !important;
+    }
+    .road-card.skipped {
+      background: #F1F5F9 !important;
+      border-color: #CBD5E1 !important;
+      opacity: 0.6 !important;
+      cursor: not-allowed !important;
+    }
+
+    /* 4. 우측 패널 탭 (도로 카드 vs 검토 로그) */
+    .panel-tab-nav {
+      display: flex;
+      border-bottom: 1.5px solid var(--border);
+      margin-bottom: 10px;
+      gap: 6px;
+    }
+    .panel-tab-btn {
+      padding: 7px 14px;
+      border: none;
+      background: transparent;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2.5px solid transparent;
+      transition: all 0.2s;
+    }
+    .panel-tab-btn.active {
+      color: #0284C7;
+      border-bottom-color: #0284C7;
+    }
+
+    /* 검토 로그 테이블 */
+    .log-table-wrap {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 480px;
+    }
+    .log-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+    .log-table th {
+      background: #F8FAFC;
+      color: var(--text-muted);
+      font-weight: 800;
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1.5px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .log-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid #F1F5F9;
+      color: var(--text-main);
+      font-weight: 600;
+    }
+    .log-badge-accept {
+      background: #DCFCE7;
+      color: #15803D;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 800;
+      font-size: 0.75rem;
+      border: 1px solid #86EFAC;
+    }
+    .log-badge-skip {
+      background: #FEE2E2;
+      color: #B91C1C;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 800;
+      font-size: 0.75rem;
+      border: 1px solid #FCA5A5;
+    }
+
+    /* 5. 게임 종료 리포트 & 단계별 리플레이 컨트롤러 */
+    .report-section {
+      width: 100%;
+      margin-top: 24px;
+      background: #FFFFFF;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+    }
+    .report-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1.5px solid #F1F5F9;
+    }
+    .report-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .report-title {
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+    .view-toggle-bar {
+      display: inline-flex;
+      background: #F1F5F9;
+      border-radius: 10px;
+      padding: 3px;
+      gap: 4px;
+    }
+    .view-toggle-btn {
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .view-toggle-btn.active {
+      background: #FFFFFF;
+      color: #0284C7;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .diff-badge-highlight {
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-weight: 800;
+      font-size: 0.92rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .diff-badge-highlight.perfect {
+      background: #D1FAE5;
+      color: #065F46;
+      border: 1.5px solid #10B981;
+    }
+    .diff-badge-highlight.gap {
+      background: #FEF3C7;
+      color: #92400E;
+      border: 1.5px solid #F59E0B;
+    }
+
+    /* 리플레이 컨트롤러 */
+    .replay-card {
+      background: #F8FAFC;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 16px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .replay-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .replay-step-title {
+      font-size: 1.05rem;
+      font-weight: 900;
+      color: #0F172A;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .replay-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .replay-btn {
+      padding: 7px 14px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      border-radius: 8px;
+      border: 1.5px solid #CBD5E1;
+      background: #FFFFFF;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .replay-btn:hover {
+      border-color: #0284C7;
+      color: #0284C7;
+    }
+    .replay-btn.primary {
+      background: #0284C7;
+      color: #FFFFFF;
+      border-color: #0284C7;
+    }
+    .replay-btn.primary:hover {
+      background: #0369A1;
+    }
+    .replay-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+    .replay-slider {
+      flex: 1;
+      height: 8px;
+      border-radius: 99px;
+      background: #CBD5E1;
+      outline: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+    .replay-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #0284C7;
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+    }
+    .replay-info-box {
+      background: #FFFFFF;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+      color: #334155;
+    }
+
+    /* ================= 미래 도시 과학 학습 콘텐츠 스타일 ================= */
+    /* 1. 지도 내 플로팅 시설 과학 카드 (게임 흐름 방해 0%) */
+    .facility-science-card {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 2px solid #0284C7;
+      border-radius: 16px;
+      padding: 16px 18px;
+      box-shadow: 0 12px 32px rgba(2, 132, 199, 0.22);
+      z-index: 100;
+      animation: slideUpFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    @keyframes slideUpFade {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fsc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .fsc-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .fsc-icon {
+      font-size: 1.6rem;
+      line-height: 1;
+    }
+    .fsc-name {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0F172A;
+    }
+    .fsc-topic {
+      display: inline-block;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #0284C7;
+      background: #E0F2FE;
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-top: 2px;
+    }
+    .fsc-close-btn {
+      background: #F1F5F9;
+      border: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #64748B;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .fsc-close-btn:hover {
+      background: #E2E8F0;
+      color: #0F172A;
+    }
+    .fsc-desc {
+      font-size: 0.88rem;
+      line-height: 1.55;
+      color: #334155;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .fsc-keyconcept {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #059669;
+      background: #ECFDF5;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #A7F3D0;
+    }
+
+    /* 노드 과학 정보 뱃지 및 포인터 */
+    .node-group {
+      cursor: pointer;
+    }
+    .node-sci-badge {
+      transition: transform 0.2s ease;
+      cursor: pointer;
+    }
+    .node-group:hover .node-sci-badge {
+      transform: translate(24px, -24px) scale(1.18);
+    }
+
+    /* 2. 게임 종료 후 선택형 과학 퀴즈 섹션 (점수 영향 0%) */
+    .bonus-quiz-section {
+      width: 100%;
+      max-width: 900px;
+      margin-top: 24px;
+      background: #FFFFFF;
+      border: 2px dashed #0284C7;
+      border-radius: 20px;
+      padding: 24px 28px;
+      box-shadow: 0 8px 24px rgba(2, 132, 199, 0.08);
+      position: relative;
+    }
+    .bonus-quiz-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .bonus-quiz-title-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .bonus-quiz-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #0F172A;
+    }
+    .bonus-quiz-pill {
+      font-size: 0.75rem;
+      font-weight: 800;
+      background: #FEF3C7;
+      color: #B45309;
+      padding: 3px 10px;
+      border-radius: 99px;
+      border: 1px solid #FDE68A;
+    }
+    .bonus-quiz-question-box {
+      background: #F0F9FF;
+      border: 1.5px solid #BAE6FD;
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+    .bonus-quiz-facility-tag {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: #0369A1;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .bonus-quiz-q-text {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: #0F172A;
+      line-height: 1.5;
+    }
+    .bonus-quiz-choices-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 640px) {
+      .bonus-quiz-choices-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .choice-btn {
+      background: #FFFFFF;
+      border: 2px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #1E293B;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.18s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .choice-btn:hover:not(:disabled) {
+      border-color: #0284C7;
+      background: #F0F9FF;
+      transform: translateY(-1px);
+    }
+    .choice-btn.selected-correct {
+      border-color: #10B981;
+      background: #ECFDF5;
+      color: #065F46;
+      font-weight: 700;
+    }
+    .choice-btn.selected-wrong {
+      border-color: #EF4444;
+      background: #FEF2F2;
+      color: #991B1B;
+      font-weight: 700;
+    }
+    .choice-btn.show-correct {
+      border-color: #10B981;
+      background: #F0FDF4;
+      color: #047857;
+    }
+    .choice-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #F1F5F9;
+      font-size: 0.75rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .choice-btn.selected-correct .choice-num {
+      background: #10B981;
+      color: #FFFFFF;
+    }
+    .choice-btn.selected-wrong .choice-num {
+      background: #EF4444;
+      color: #FFFFFF;
+    }
+    .quiz-feedback-box {
+      border-radius: 14px;
+      padding: 16px 18px;
+      animation: fadeIn 0.3s ease;
+      margin-bottom: 14px;
+    }
+    .quiz-feedback-box.correct {
+      background: #ECFDF5;
+      border: 1.5px solid #6EE7B7;
+      color: #065F46;
+    }
+    .quiz-feedback-box.wrong {
+      background: #FEF2F2;
+      border: 1.5px solid #FCA5A5;
+      color: #991B1B;
+    }
+    .quiz-feedback-header {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .quiz-feedback-desc {
+      font-size: 0.88rem;
+      line-height: 1.55;
+      color: #334155;
+    }
+
+    /* 3. 8대 미래 시설 과학 도감 전체 모달 */
+    .atlas-modal {
+      background: #FFFFFF;
+      border-radius: 24px;
+      width: 95%;
+      max-width: 1040px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
+      border: 1.5px solid rgba(255, 255, 255, 0.3);
+      position: relative;
+      animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .atlas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .atlas-card {
+      background: #F8FAFC;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 16px;
+      padding: 16px;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .atlas-card:hover {
+      border-color: #0284C7;
+      background: #F0F9FF;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.1);
+    }
+    .atlas-card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .atlas-card-icon {
+      font-size: 1.8rem;
+    }
+    .atlas-card-name {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #0F172A;
+    }
+    .atlas-card-topic {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #0284C7;
+      background: #E0F2FE;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .atlas-card-desc {
+      font-size: 0.84rem;
+      line-height: 1.5;
+      color: #475569;
+    }
+    .atlas-card-concept {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #059669;
+      background: #ECFDF5;
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- 1. TITLE SCREEN -->
+    <div id="screen-title" class="screen active">
+      <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+        <div class="title-badge" style="white-space: nowrap;">☀️ 2050 청정 친환경 솔라펑크 스마트시티</div>
+        <div style="display: flex; gap: 10px; flex-shrink: 0; flex-wrap: nowrap;">
+          <button class="btn btn-outline btn-sm" onclick="openScienceAtlasModal()" style="font-weight: 800; border-radius: 99px; background: #FFFFFF; color: #0284C7; border-color: #0284C7; white-space: nowrap; padding: 7px 16px;">
+            🔬 미래 도시 과학 도감
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="openConceptModal()" style="font-weight: 800; border-radius: 99px; background: #FFFFFF; white-space: nowrap; padding: 7px 16px;">
+            📖 수학·과학 개념 사전
+          </button>
+        </div>
+      </div>
+
+      <h1 class="main-title">LINK CITY 2050</h1>
+      <p class="subtitle">
+        푸른 바다와 잔디, 태양광과 수직 숲으로 가득한 미래 생태 도시!<br/>
+        <strong>최소 건설비와 사이클 없는 최적 스마트 도로망</strong>으로 모든 시설을 연결하세요.
+      </p>
+
+      <!-- 대메뉴 모드 스위처: [자유 건설 모드] vs [크루스칼 학습 모드] -->
+      <div class="main-mode-switcher">
+        <button class="main-mode-btn active" id="btnModeFree" onclick="switchMainPlayMode('FREE')">
+          <span>🎮 자유 건설 모드 (1~4인)</span>
+        </button>
+        <button class="main-mode-btn" id="btnModeLearn" onclick="switchMainPlayMode('LEARN')">
+          <span>📚 크루스칼 학습 모드</span>
+        </button>
+      </div>
+
+      <!-- (A) 자유 건설 모드용: 1~4인 인원 선택 및 닉네임 입력 -->
+      <div class="mode-select-box" id="freeModeBox">
+        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 2px;">참가 인원 및 게임 모드</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">대결 인원수를 선택하고 참여자의 닉네임을 설정하세요.</p>
+
+        <div class="mode-tabs">
+          <div class="mode-tab-btn active" id="mode-tab-1" onclick="selectGameMode(1)">
+            <span class="mode-tab-icon">🏙️</span>
+            <span class="mode-tab-count">1인용</span>
+            <span class="mode-tab-name">스마트시티 챌린지</span>
+          </div>
+          <div class="mode-tab-btn" id="mode-tab-2" onclick="selectGameMode(2)">
+            <span class="mode-tab-icon">⚔️</span>
+            <span class="mode-tab-count">2인용</span>
+            <span class="mode-tab-name">네트워크 듀얼</span>
+          </div>
+          <div class="mode-tab-btn" id="mode-tab-3" onclick="selectGameMode(3)">
+            <span class="mode-tab-icon">🏆</span>
+            <span class="mode-tab-count">3인용</span>
+            <span class="mode-tab-name">스마트시티 리그</span>
+          </div>
+          <div class="mode-tab-btn" id="mode-tab-4" onclick="selectGameMode(4)">
+            <span class="mode-tab-icon">👑</span>
+            <span class="mode-tab-count">4인용</span>
+            <span class="mode-tab-name">LINK CITY 챔피언십</span>
+          </div>
+        </div>
+
+        <div class="mode-desc-banner" id="modeDescBanner">
+          <span>ℹ️</span>
+          <span id="modeDescText">1인 싱글 기록 도전: 크루스칼 알고리즘과 대결하여 최적 비용을 달성하세요.</span>
+        </div>
+
+        <!-- 플레이어 닉네임 입력 그리드 (모드에 따라 1~4개 표시) -->
+        <div style="font-size: 0.88rem; font-weight: 800; color: var(--text-main); margin-bottom: 6px;">
+          참여자 이름 (닉네임)
+        </div>
+        <div class="player-inputs-grid" id="playerInputsGrid">
+          <!-- 동적 생성: P1, P2, P3, P4 인풋 -->
+        </div>
+      </div>
+
+      <!-- (B) 크루스칼 학습 모드용 안내 박스 -->
+      <div class="mode-select-box" id="learnModeBox" style="display: none; background: linear-gradient(135deg, #F0FDF4 0%, #E0F2FE 100%); border-color: #0284C7;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+          <span style="font-size: 1.5rem;">📚</span>
+          <h3 style="font-size: 1.2rem; font-weight: 900; color: #0284C7;">크루스칼 알고리즘 인터랙티브 학습</h3>
+        </div>
+        <p style="font-size: 0.9rem; color: #334155; line-height: 1.55; margin-bottom: 12px;">
+          가장 건설비가 낮은 도로를 순서대로 확인하며, 사이클(순환선) 형성 여부를 스스로 판단해 보는 <strong>단계별 교육 시뮬레이터</strong>입니다.
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 0.84rem;">
+          <div style="background: #FFFFFF; padding: 10px; border-radius: 10px; border: 1px solid #CBD5E1;">
+            <strong style="color: #0284C7;">1. 탐욕적 선택</strong><br/>미검토 도로 중 최저 비용 도로를 우선 검토 (동률 가중치 자유 선택 인정)
+          </div>
+          <div style="background: #FFFFFF; padding: 10px; border-radius: 10px; border: 1px solid #CBD5E1;">
+            <strong style="color: #059669;">2. 사이클 판단</strong><br/>순환선 형성 시 제외(Skip), 사이클 없을 시 채택(Accept)
+          </div>
+          <div style="background: #FFFFFF; padding: 10px; border-radius: 10px; border: 1px solid #CBD5E1;">
+            <strong style="color: #D97706;">3. n - 1개 완성</strong><br/>정점 N개 도시를 N-1개 도로로 완벽 연결 시 최소 신장 트리(MST) 달성!
+          </div>
+        </div>
+      </div>
+
+      <!-- 공통 도시 난이도 선택 -->
+      <div class="difficulty-select-box">
+        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 4px;">공통 도시 난이도 선택</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">도시 규모와 도로 후보 수를 선택하세요.</p>
+        
+        <div class="diff-grid">
+          <div class="diff-card selected" id="diff-card-EASY" onclick="selectDifficulty('EASY')">
+            <div class="level-name" style="color: #059669;">쉬움</div>
+            <div class="level-info">시설 6개 • 도로 9개</div>
+            <div class="time-tag">⏱ 3분</div>
+          </div>
+          <div class="diff-card" id="diff-card-NORMAL" onclick="selectDifficulty('NORMAL')">
+            <div class="level-name" style="color: #0284C7;">보통</div>
+            <div class="level-info">시설 8개 • 도로 13개</div>
+            <div class="time-tag">⏱ 4분</div>
+          </div>
+          <div class="diff-card" id="diff-card-HARD" onclick="selectDifficulty('HARD')">
+            <div class="level-name" style="color: #D97706;">어려움</div>
+            <div class="level-info">시설 10개 • 도로 17개</div>
+            <div class="time-tag">⏱ 5분</div>
+          </div>
+        </div>
+      </div>
+
+      <button id="startBtn" class="btn btn-primary" style="width: 100%; font-size: 1.15rem; padding: 15px;" onclick="onMainStartBtnClick()">
+        스마트시티 챌린지 시작 🚀
+      </button>
+    </div>
+
+    <!-- 2. PLAY SCREEN -->
+    <div id="screen-play" class="screen">
+      <div class="hud">
+        <div class="hud-left">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span class="city-badge" id="hudCityName">네오 송도 스마트 아일랜드</span>
+            <span class="hud-player-badge" id="hudPlayerBadge" style="display: none;">
+              <span class="hud-player-dot"></span>
+              <span id="hudPlayerText">P1 플레이어 1</span>
+            </span>
+          </div>
+          <div class="hud-stats">
+            <div class="hud-stat-item">
+              <span class="hud-stat-label">남은 시간</span>
+              <span class="hud-stat-val time" id="hudTimer">03:00</span>
+            </div>
+            <div class="hud-stat-item">
+              <span class="hud-stat-label">누적 건설비</span>
+              <span class="hud-stat-val cost" id="hudCost">0억</span>
+            </div>
+            <div class="hud-stat-item">
+              <span class="hud-stat-label">건설 도로 (목표: n - 1)</span>
+              <span class="hud-stat-val edges" id="hudEdges">0 / 5</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-controls">
+          <button class="btn btn-outline btn-sm" onclick="openScienceAtlasModal()" title="과학 도감" style="color: #0284C7; border-color: #0284C7; background: #F0F9FF;">🔬 과학 도감</button>
+          <button class="btn btn-outline btn-sm" onclick="openConceptModal()" title="개념 사전">📖 개념 사전</button>
+          <button class="btn btn-outline btn-sm" id="hudUndoBtn" onclick="undoLastEdge()" title="실행 취소">↩ 실행 취소</button>
+          <button class="btn btn-outline btn-sm" id="hudResetBtn" onclick="resetCurrentGame()" title="다시 시작">🔄 초기화</button>
+          <button class="btn btn-outline btn-sm" onclick="exitToTitle()" title="메인 화면으로">🏠 나가기</button>
+        </div>
+      </div>
+
+      <div id="alertBanner">
+        <span style="font-size: 1.2rem;">⚠️</span>
+        <span id="alertText">순환선(사이클) 발생 경고! 이미 다른 도로망으로 연결된 시설입니다.</span>
+      </div>
+
+      <!-- 학습 모드 전용 대화형 배너 & 사이클 판단 인터랙션 박스 -->
+      <div id="learnInteractionBar" class="learn-interaction-bar" style="display: none;">
+        <div class="learn-bar-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="learn-step-badge" id="learnStepBadge">STEP 1 • 탐욕적 검토</span>
+            <span class="learn-guide-msg" id="learnGuideMsg">
+              💡 최저 건설비 도로 후보 중 하나를 선택하세요.
+            </span>
+          </div>
+          <span style="font-size: 0.85rem; font-weight: 700; color: #0284C7;" id="learnProgressBadge">
+            채택 0 / 목표 5 (남은 미검토: 9개)
+          </span>
+        </div>
+
+        <!-- 도로 선택 시 나타나는 사이클 판단 퀴즈 -->
+        <div class="learn-quiz-box" id="learnQuizBox" style="display: none;">
+          <div class="quiz-question-text" id="quizQuestionText">
+            도로 [A - B] (2억)를 건설하면 순환선(사이클)이 발생할까요?
+          </div>
+          <div class="quiz-btn-group">
+            <button class="quiz-btn quiz-btn-accept" onclick="submitCycleQuiz(false)">
+              ✅ 사이클 없음 (도로 채택)
+            </button>
+            <button class="quiz-btn quiz-btn-skip" onclick="submitCycleQuiz(true)">
+              ❌ 사이클 발생 (도로 건너뛰기)
+            </button>
+          </div>
+        </div>
+
+        <!-- 피드백 메시지 박스 -->
+        <div class="quiz-feedback-box" id="quizFeedbackBox" style="display: none;">
+          <span id="quizFeedbackIcon">🎉</span>
+          <span id="quizFeedbackText">정답입니다!</span>
+        </div>
+      </div>
+
+      <!-- 2-Column Game Workspace (Left: 2.5D City Map / Right: Road Construction Cards Panel) -->
+      <div class="game-workspace">
+        <!-- 좌측 지도 캔버스 -->
+        <div class="map-wrapper" id="mapWrapper">
+        <svg id="cityMap" viewBox="0 0 1000 860" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <!-- (1) 아이소메트릭 잔디 그리드 (대비 완화: 건물과 도로 가독성 극대화) -->
+            <pattern id="iso-grass-grid" width="60" height="34.64" patternUnits="userSpaceOnUse">
+              <path d="M 30 0 L 60 17.32 L 30 34.64 L 0 17.32 Z" fill="none" stroke="rgba(255, 255, 255, 0.16)" stroke-width="0.6" opacity="0.22"/>
+            </pattern>
+
+            <!-- ================= 통일된 광원(10시 방향) 2.5D 솔라펑크 미니어처 빌딩 (8종) ================= -->
+            
+            <!-- 1. 태양광 발전소 (SOLAR): 2단 계단식 경사형 솔라 어레이 + 에너지 큐브 -->
+            <g id="icon-SOLAR">
+              <!-- 지면 접지 그림자 -->
+              <ellipse cx="6" cy="6" rx="26" ry="10" fill="rgba(15, 23, 42, 0.22)"/>
+              
+              <!-- 지지 트러스 (좌측 밝음 / 우측 어두움) -->
+              <polygon points="-22,-14 -16,-2 -16,4 -22,-8" fill="#CBD5E1"/>
+              <polygon points="18,-16 24,-2 24,4 18,-10" fill="#64748B"/>
+              
+              <!-- 상단 솔라 패널 (윗면: 딥블루 + 시안 그리드) -->
+              <polygon points="-24,-34 16,-34 22,-18 -18,-18" fill="#0284C7" stroke="#FFFFFF" stroke-width="1.5"/>
+              <line x1="-14" y1="-34" x2="-8" y2="-18" stroke="#38BDF8" stroke-width="1.2"/>
+              <line x1="-4" y1="-34" x2="2" y2="-18" stroke="#38BDF8" stroke-width="1.2"/>
+              <line x1="6" y1="-34" x2="12" y2="-18" stroke="#38BDF8" stroke-width="1.2"/>
+              <line x1="-21" y1="-26" x2="19" y2="-26" stroke="#7DD3FC" stroke-width="0.8"/>
+              
+              <!-- 하단 솔라 패널 (2단) -->
+              <polygon points="-22,-16 18,-16 24,-1 -16,-1" fill="#0369A1" stroke="#FFFFFF" stroke-width="1.5"/>
+              <line x1="-12" y1="-16" x2="-6" y2="-1" stroke="#38BDF8" stroke-width="1.2"/>
+              <line x1="-2" y1="-16" x2="4" y2="-1" stroke="#38BDF8" stroke-width="1.2"/>
+              <line x1="8" y1="-16" x2="14" y2="-1" stroke="#38BDF8" stroke-width="1.2"/>
+              
+              <!-- 우측 전력 변전 제어 큐브 -->
+              <polygon points="12,-4 24,-10 24,2 12,8" fill="#475569"/>
+              <polygon points="6,-1 12,-4 12,8 6,11" fill="#E2E8F0"/>
+              <polygon points="6,-1 18,-7 24,-10 12,-4" fill="#FFFFFF"/>
+              <!-- 충전 LED 인디케이터 -->
+              <circle cx="9" cy="4" r="1.5" fill="#10B981"/>
+              <circle cx="9" cy="7" r="1.5" fill="#34D399"/>
+            </g>
+
+            <!-- 2. 스마트 병원 (HOSPITAL): 2.5D 메디컬 큐브 타워 + 옥상 헬리패드 + 그린 크로스 -->
+            <g id="icon-HOSPITAL">
+              <!-- 지면 접지 그림자 -->
+              <polygon points="-16,4 4,-6 28,10 6,18" fill="rgba(15, 23, 42, 0.24)"/>
+
+              <!-- 타워 좌측면 (빛 받는 밝은 벽) -->
+              <polygon points="-20,-38 0,-26 0,6 -20,-6" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+              <!-- 좌측면 통유리 창문들 -->
+              <rect x="-16" y="-28" width="5" height="7" rx="1" fill="#0D9488"/>
+              <rect x="-8" y="-23" width="5" height="7" rx="1" fill="#0D9488"/>
+              <rect x="-16" y="-17" width="5" height="7" rx="1" fill="#0D9488"/>
+              <rect x="-8" y="-12" width="5" height="7" rx="1" fill="#0D9488"/>
+
+              <!-- 타워 우측면 (어두운 음영벽) -->
+              <polygon points="0,-26 22,-38 22,-6 0,6" fill="#94A3B8" stroke="#64748B" stroke-width="1"/>
+              <!-- 우측면 슬릿 창문 -->
+              <line x1="6" y1="-20" x2="16" y2="-26" stroke="#047857" stroke-width="2"/>
+              <line x1="6" y1="-10" x2="16" y2="-16" stroke="#047857" stroke-width="2"/>
+
+              <!-- 타워 윗면 (옥상: 가장 밝음) -->
+              <polygon points="0,-48 22,-38 0,-26 -22,-38" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.8"/>
+              
+              <!-- 옥상 헬리패드 -->
+              <ellipse cx="0" cy="-37" rx="10" ry="5.5" fill="#CCFBF1" stroke="#10B981" stroke-width="1.2"/>
+              <text x="0" y="-34" fill="#0D9488" font-size="8.5" font-weight="900" text-anchor="middle">H</text>
+
+              <!-- 정면 입체 3D 에메랄드 메디컬 크로스 (+) -->
+              <g transform="translate(-10, -2)">
+                <rect x="-2" y="-6" width="4" height="12" rx="1" fill="#10B981" stroke="#047857" stroke-width="0.8"/>
+                <rect x="-6" y="-2" width="12" height="4" rx="1" fill="#10B981" stroke="#047857" stroke-width="0.8"/>
+              </g>
+            </g>
+
+            <!-- 3. AI 연구소 (AI_LAB): 미래형 육각 프리즘 글래스 타워 + 부유형 퀀텀 코어 -->
+            <g id="icon-AI_LAB">
+              <!-- 지면 접지 그림자 -->
+              <ellipse cx="6" cy="6" rx="24" ry="10" fill="rgba(15, 23, 42, 0.24)"/>
+
+              <!-- 하부 슬래브 (지면 베이스) -->
+              <polygon points="0,6 20,-4 0,-14 -20,-4" fill="#CBD5E1"/>
+
+              <!-- 타워 좌측면 (투명 스카이 블루 글래스: 빛 반사) -->
+              <polygon points="-18,-36 0,-26 0,4 -18,-6" fill="#BAE6FD" stroke="#38BDF8" stroke-width="1"/>
+              <!-- 사선 반사광 하이라이트 -->
+              <line x1="-14" y1="-30" x2="-4" y2="-10" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="8 4"/>
+
+              <!-- 타워 우측면 (어두운 시안 글래스: 내부 회로망) -->
+              <polygon points="0,-26 18,-36 18,-6 0,4" fill="#0284C7" stroke="#0369A1" stroke-width="1"/>
+              <!-- 내부 회로망 라인 -->
+              <line x1="4" y1="-20" x2="14" y2="-26" stroke="#67E8F9" stroke-width="1"/>
+              <line x1="4" y1="-10" x2="14" y2="-16" stroke="#67E8F9" stroke-width="1"/>
+
+              <!-- 타워 중간 결합 밴드 -->
+              <polygon points="0,-12 18,-22 18,-19 0,-9 -18,-19 -18,-22" fill="#FFFFFF" stroke="#0284C7" stroke-width="1"/>
+
+              <!-- 타워 옥상 윗면 (하이라이트 화이트) -->
+              <polygon points="0,-48 18,-38 0,-28 -18,-38" fill="#F1F5F9" stroke="#2563EB" stroke-width="1.8"/>
+
+              <!-- 옥상 부유형 퀀텀 코어 구체 (Cyan Glow) -->
+              <circle cx="0" cy="-38" r="6" fill="#06B6D4" stroke="#FFFFFF" stroke-width="1.5"/>
+              <ellipse cx="0" cy="-38" rx="12" ry="4" fill="none" stroke="#67E8F9" stroke-width="1.2"/>
+            </g>
+
+            <!-- 4. 자율주행 교통 허브 (MOBILITY): 미래 공항형 아치 캐노피 + 2층 관제탑 -->
+            <g id="icon-MOBILITY">
+              <!-- 지면 접지 그림자 -->
+              <ellipse cx="8" cy="6" rx="26" ry="10" fill="rgba(15, 23, 42, 0.22)"/>
+
+              <!-- 지상 진입 플랫폼 및 아치 통로 -->
+              <polygon points="-22,0 0,10 22,0 0,-10" fill="#E2E8F0" stroke="#94A3B8" stroke-width="1"/>
+
+              <!-- 우측 지지벽 (음영 슬레이트) -->
+              <path d="M 0,10 L 22,0 L 22,-14 C 22,-26 0,-20 0,-8 Z" fill="#64748B"/>
+
+              <!-- 좌측 지지벽 및 전면 터미널 (밝은 콘크리트) -->
+              <path d="M -22,0 L 0,10 L 0,-8 C 0,-20 -22,-26 -22,-14 Z" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+
+              <!-- 유선형 상부 루프 캐노피 (화이트 + 스카이블루 솔라 스트립) -->
+              <path d="M -24,-14 C -24,-36 24,-36 24,-14 C 18,-6 -18,-6 -24,-14 Z" 
+                    fill="#FFFFFF" stroke="#0284C7" stroke-width="2"/>
+              <!-- 솔라 스트립 라인 -->
+              <path d="M -16,-20 C -16,-30 16,-30 16,-20" fill="none" stroke="#38BDF8" stroke-width="2.5"/>
+
+              <!-- 옥상 미니 관제탑 돔 -->
+              <ellipse cx="0" cy="-30" rx="6" ry="3.5" fill="#E0F2FE" stroke="#0284C7" stroke-width="1.2"/>
+              <circle cx="0" cy="-32" r="3" fill="#0284C7"/>
+              <line x1="0" y1="-32" x2="0" y2="-40" stroke="#0284C7" stroke-width="1.5"/>
+            </g>
+
+            <!-- 5. 친환경 주거단지 (RESIDENCE): 3단 계단식 수직정원(Vertical Forest) 아파트 -->
+            <g id="icon-RESIDENCE">
+              <!-- 지면 접지 그림자 -->
+              <polygon points="-16,6 4,-4 26,8 6,18" fill="rgba(15, 23, 42, 0.24)"/>
+
+              <!-- [1단 베이스 블록] -->
+              <polygon points="-18,-18 0,-8 0,8 -18,-2" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1"/>
+              <polygon points="0,-8 20,-18 20,-2 0,8" fill="#94A3B8" stroke="#64748B" stroke-width="1"/>
+              <polygon points="0,-24 20,-18 0,-8 -18,-18" fill="#34D399"/> <!-- 1단 잔디 테라스 -->
+
+              <!-- [2단 중간 블록] -->
+              <polygon points="-14,-30 0,-22 0,-10 -14,-18" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+              <polygon points="0,-22 16,-30 16,-18 0,-10" fill="#64748B" stroke="#475569" stroke-width="1"/>
+              <polygon points="0,-36 16,-30 0,-22 -14,-30" fill="#10B981"/> <!-- 2단 잔디 테라스 -->
+
+              <!-- [3단 상부 펜트하우스 블록] -->
+              <polygon points="-8,-42 0,-37 0,-28 -8,-33" fill="#FFFFFF"/>
+              <polygon points="0,-37 10,-42 10,-33 0,-28" fill="#475569"/>
+              <polygon points="0,-48 10,-42 0,-37 -8,-42" fill="#059669"/> <!-- 옥상 스카이 가든 -->
+
+              <!-- 테라스 미니어처 관목들 -->
+              <circle cx="-10" cy="-14" r="3" fill="#047857"/>
+              <circle cx="10" cy="-14" r="2.5" fill="#047857"/>
+              <circle cx="-6" cy="-26" r="2.5" fill="#047857"/>
+              <circle cx="8" cy="-26" r="2.5" fill="#047857"/>
+              <circle cx="0" cy="-42" r="2" fill="#065F46"/>
+            </g>
+
+            <!-- 6. 데이터 센터 (DATA_CENTER): 2.5D 모듈형 화이트 서버 큐브 + 옥상 쿨링 벤트 -->
+            <g id="icon-DATA_CENTER">
+              <!-- 지면 접지 그림자 -->
+              <polygon points="-18,4 2,-6 26,6 6,16" fill="rgba(15, 23, 42, 0.24)"/>
+
+              <!-- 좌측면 (밝은 화이트 외벽 + LED 서버 랙) -->
+              <polygon points="-18,-34 0,-24 0,6 -18,-4" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2"/>
+              <!-- 에코 LED 데이터 바 -->
+              <line x1="-14" y1="-22" x2="-4" y2="-17" stroke="#0284C7" stroke-width="2"/>
+              <line x1="-14" y1="-14" x2="-4" y2="-9" stroke="#10B981" stroke-width="2"/>
+              <line x1="-14" y1="-6" x2="-4" y2="-1" stroke="#0284C7" stroke-width="2"/>
+
+              <!-- 우측면 (어두운 음영벽 + 냉각 루버 환기창) -->
+              <polygon points="0,-24 18,-34 18,-4 0,6" fill="#475569" stroke="#334155" stroke-width="1.2"/>
+              <!-- 냉각 루버 줄무늬 -->
+              <line x1="4" y1="-21" x2="14" y2="-27" stroke="#94A3B8" stroke-width="1.2"/>
+              <line x1="4" y1="-15" x2="14" y2="-21" stroke="#94A3B8" stroke-width="1.2"/>
+              <line x1="4" y1="-9" x2="14" y2="-15" stroke="#94A3B8" stroke-width="1.2"/>
+              <line x1="4" y1="-3" x2="14" y2="-9" stroke="#94A3B8" stroke-width="1.2"/>
+
+              <!-- 옥상 윗면 (하이라이트 화이트 플레이트) -->
+              <polygon points="0,-44 18,-34 0,-24 -18,-34" fill="#F1F5F9" stroke="#3B82F6" stroke-width="1.8"/>
+              
+              <!-- 옥상 쿨링 팬 터빈 2기 -->
+              <ellipse cx="-6" cy="-34" rx="4" ry="2.2" fill="#E2E8F0" stroke="#3B82F6" stroke-width="1"/>
+              <ellipse cx="6" cy="-34" rx="4" ry="2.2" fill="#CBD5E1" stroke="#3B82F6" stroke-width="1"/>
+            </g>
+
+            <!-- 7. 스마트 농업 돔 (AGRI_DOME): 2.5D 콘크리트 베이스 + 반구형 지오데식 글래스 바이오 돔 -->
+            <g id="icon-AGRI_DOME">
+              <!-- 지면 접지 그림자 -->
+              <ellipse cx="6" cy="7" rx="24" ry="10" fill="rgba(15, 23, 42, 0.22)"/>
+
+              <!-- 원통형 기초 콘크리트 베이스 -->
+              <!-- 베이스 측면 (좌측 밝음 / 우측 어두움) -->
+              <path d="M -20,2 L -20,7 C -20,13 0,13 0,7 L 0,2 Z" fill="#E2E8F0"/>
+              <path d="M 0,2 L 0,7 C 0,13 20,13 20,7 L 20,2 Z" fill="#94A3B8"/>
+              <ellipse cx="0" cy="2" rx="20" ry="8" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+
+              <!-- 내부 수경재배 에메랄드 잔디 베이스 -->
+              <ellipse cx="0" cy="0" rx="16" ry="6" fill="#34D399"/>
+
+              <!-- 반구형 바이오 글래스 돔 (좌상단 하이라이트 투명 유리) -->
+              <path d="M -18,0 C -18,-26 18,-26 18,0 C 18,6 -18,6 -18,0 Z" 
+                    fill="rgba(255, 255, 255, 0.8)" stroke="#10B981" stroke-width="2"/>
+              <!-- 우하단 내부 돔 쉐도우 -->
+              <path d="M 0,-26 C 18,-26 18,0 18,0 C 18,6 0,6 0,0 Z" 
+                    fill="rgba(5, 150, 105, 0.25)"/>
+
+              <!-- 지오데식 프레임 라인 -->
+              <path d="M 0,-26 L 0,4" stroke="#10B981" stroke-width="1.2" stroke-dasharray="2 2"/>
+              <path d="M -18,0 C -10,-12 10,-12 18,0" fill="none" stroke="#10B981" stroke-width="1"/>
+
+              <!-- 옥상 환기 큐폴라 -->
+              <circle cx="0" cy="-26" r="3" fill="#FFFFFF" stroke="#059669" stroke-width="1.2"/>
+
+              <!-- 돔 내부 에코 새싹들 -->
+              <circle cx="-6" cy="-2" r="2.5" fill="#047857"/>
+              <circle cx="6" cy="-2" r="2.5" fill="#047857"/>
+            </g>
+
+            <!-- 8. 수소 에너지 센터 (HYDROGEN): 입체 구형 H2 압력 탱크 + 트러스 프레임 + 에너지 파이프 -->
+            <g id="icon-HYDROGEN">
+              <!-- 지면 접지 그림자 -->
+              <ellipse cx="8" cy="8" rx="24" ry="10" fill="rgba(15, 23, 42, 0.22)"/>
+
+              <!-- 하부 지지 콘크리트 베이스 -->
+              <ellipse cx="0" cy="5" rx="20" ry="7" fill="#CBD5E1" stroke="#94A3B8" stroke-width="1"/>
+
+              <!-- 보조 소형 구형 탱크 (우측) -->
+              <ellipse cx="12" cy="-12" rx="9" ry="9" fill="#E0F2FE" stroke="#0284C7" stroke-width="1.8"/>
+              <ellipse cx="10" cy="-15" rx="3" ry="2" fill="#FFFFFF"/> <!-- 하이라이트 -->
+
+              <!-- 3D 철골 지지 트러스 다리 -->
+              <line x1="-12" y1="-8" x2="-14" y2="4" stroke="#64748B" stroke-width="2"/>
+              <line x1="2" y1="-8" x2="4" y2="4" stroke="#64748B" stroke-width="2"/>
+              <line x1="-5" y1="-8" x2="-5" y2="5" stroke="#CBD5E1" stroke-width="2"/>
+
+              <!-- 주 대형 구형 H2 탱크 (좌상단 스펙큘러 구체) -->
+              <circle cx="-5" cy="-20" r="15" fill="#FFFFFF" stroke="#0284C7" stroke-width="2.2"/>
+              <circle cx="-5" cy="-20" r="13" fill="#E0F2FE"/>
+              <!-- 좌상단 구면 스펙큘러 하이라이트 -->
+              <ellipse cx="-9" cy="-25" rx="5" ry="3" fill="#FFFFFF"/>
+              <!-- H2 텍스트 -->
+              <text x="-5" y="-16" fill="#0284C7" font-size="10.5" font-weight="900" text-anchor="middle">H₂</text>
+
+              <!-- 청록색 연결 파이프라인 -->
+              <path d="M -5,-5 L -5,4 L 14,4 L 14,-3" fill="none" stroke="#10B981" stroke-width="2"/>
+            </g>
+
+          </defs>
+
+          <!-- ================= 0. 화사한 대낮의 에코 스마트 아일랜드 배경 ================= -->
+          
+          <!-- (1) 푸른 바다 베이스 (Ocean) -->
+          <rect width="1000" height="860" fill="#BAE6FD" pointer-events="none"/>
+          
+          <!-- (2) 해안선 파도 디테일 -->
+          <path d="M 0,0 L 1000,0 L 1000,860 L 0,860 Z" fill="#7DD3FC" opacity="0.3" pointer-events="none"/>
+          
+          <!-- (3) 친환경 인공섬 지형 (Green Island Grass) -->
+          <path d="M 60,90 
+                   Q 500,20 940,90 
+                   Q 990,450 900,780 
+                   Q 500,840 70,760 
+                   Q 10,420 60,90 Z" 
+                fill="#86EFAC" stroke="#4ADE80" stroke-width="6" pointer-events="none"/>
+          
+          <!-- (4) 아이소메트릭 잔디 그리드 오버레이 -->
+          <path d="M 80,110 Q 500,40 920,110 Q 970,450 880,760 Q 500,820 90,740 Z" 
+                fill="url(#iso-grass-grid)" pointer-events="none"/>
+
+          <!-- (5) 청량한 에코 호수 & 수변 공원 (Lake & Park) -->
+          <g pointer-events="none">
+            <!-- Lake Water -->
+            <path d="M 380,380 C 420,320 540,320 580,380 C 620,440 680,450 670,520 C 650,600 520,620 460,570 C 400,520 340,440 380,380 Z" 
+                  fill="#38BDF8" stroke="#0284C7" stroke-width="3"/>
+            <!-- Inner Lake Ripple -->
+            <ellipse cx="520" cy="450" rx="60" ry="35" fill="#7DD3FC" opacity="0.6"/>
+            <!-- Fountain Dot -->
+            <circle cx="520" cy="450" r="5" fill="#FFFFFF"/>
+            
+            <!-- 공원 미니어처 나무들 (Park Trees) -->
+            <g fill="#15803D" stroke="#166534" stroke-width="1.2">
+              <circle cx="360" cy="350" r="8"/>
+              <circle cx="380" cy="335" r="7"/>
+              <circle cx="610" cy="350" r="9"/>
+              <circle cx="630" cy="365" r="8"/>
+              <circle cx="430" cy="600" r="8"/>
+              <circle cx="450" cy="615" r="9"/>
+              <circle cx="670" cy="560" r="8"/>
+              <circle cx="690" cy="545" r="7"/>
+            </g>
+
+            <!-- 해상 풍력 발전기 3기 (북서쪽 바다) -->
+            <g stroke="#FFFFFF" stroke-width="2" fill="#FFFFFF">
+              <line x1="80" y1="40" x2="80" y2="75"/>
+              <circle cx="80" cy="40" r="3"/>
+              <path d="M80,40 L70,25 M80,40 L95,35 M80,40 L75,55"/>
+
+              <line x1="160" y1="30" x2="160" y2="65"/>
+              <circle cx="160" cy="30" r="3"/>
+              <path d="M160,30 L150,15 M160,30 L175,25 M160,30 L155,45"/>
+
+              <line x1="240" y1="35" x2="240" y2="70"/>
+              <circle cx="240" cy="35" r="3"/>
+              <path d="M240,35 L230,20 M240,35 L255,30 M240,35 L235,50"/>
+            </g>
+          </g>
+
+          <!-- ================= 1. 도로망 레이어 ================= -->
+          <g id="edgesLayer"></g>
+
+          <!-- ================= 2. 고대비 건설비 뱃지 레이어 (클릭 가능) ================= -->
+          <g id="weightsLayer"></g>
+
+          <!-- ================= 3. 2.5D 미니어처 시설 노드 레이어 ================= -->
+          <g id="nodesLayer"></g>
+        </svg>
+
+          <!-- 지도 내 플로팅 시설 과학 카드 (시설 클릭 시 표시, 게임 방해 0%) -->
+          <div id="facilityScienceCard" class="facility-science-card" style="display: none;">
+            <div class="fsc-header">
+              <div class="fsc-title-group">
+                <span class="fsc-icon" id="fscIcon">☀️</span>
+                <div>
+                  <div class="fsc-name" id="fscName">태양광 발전소</div>
+                  <div class="fsc-topic" id="fscTopic">빛에너지와 전기에너지</div>
+                </div>
+              </div>
+              <button class="fsc-close-btn" onclick="closeFacilityScienceInfo()" title="닫기">✕</button>
+            </div>
+            <div class="fsc-desc" id="fscDesc">
+              태양 전지판의 반도체 물질이 빛에너지를 흡수하면 전자가 방출되는 광전효과를 통해 전기에너지를 직접 생산합니다.
+            </div>
+            <div class="fsc-keyconcept">
+              <span>🔬 핵심 원리:</span>
+              <span id="fscKeyConcept">광전효과 & 에너지 저장 시스템(ESS)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 우측 도로 건설 카드 / 검토 로그 패널 (지도의 오른쪽에 상시 노출) -->
+        <div class="cards-panel" id="cardsPanel">
+          <!-- 상단 탭 네비게이션: [도로 카드] vs [단계별 검토 기록] -->
+          <div class="panel-tab-nav">
+            <button class="panel-tab-btn active" id="tabBtnCards" onclick="switchRightPanelTab('cards')">
+              🛣️ 도로 카드 (<span id="tabCardsCount">0</span>)
+            </button>
+            <button class="panel-tab-btn" id="tabBtnLog" onclick="switchRightPanelTab('log')">
+              📋 단계별 검토 기록 (<span id="tabLogCount">0</span>)
+            </button>
+          </div>
+
+          <!-- (1) 도로 카드 뷰 -->
+          <div id="viewCardsContainer" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+            <div class="cards-header">
+              <div class="cards-header-top">
+                <div class="cards-title-group">
+                  <span class="cards-title-icon">🛣️</span>
+                  <h3 class="cards-title">도로 건설 카드</h3>
+                </div>
+                <span class="cards-count-badge" id="cardsCountBadge">총 0개 후보</span>
+              </div>
+              <div class="cards-sort-controls">
+                <span class="sort-label">정렬:</span>
+                <button class="sort-btn active" id="sortRandomBtn" onclick="setCardSort('random')" title="참여자가 최저 비용을 직접 탐구하는 무작위 배열">🎲 무작위 셔플</button>
+                <button class="sort-btn" id="sortCostBtn" onclick="setCardSort('cost')" title="건설비 오름차순">💰 건설비 순</button>
+                <button class="sort-btn" id="sortNodeBtn" onclick="setCardSort('node')" title="정점 이름순">🔤 정점 순</button>
+              </div>
+            </div>
+            
+            <!-- 카드 리스트 독립 스크롤 영역 (윈도우/지도 스크롤 흔들림 차단) -->
+            <div class="cards-scroll-area" id="cardsScrollArea">
+              <div class="cards-grid" id="cardsGrid">
+                <!-- 동적으로 렌더링되는 도로 카드 목록 -->
+              </div>
+            </div>
+          </div>
+
+          <!-- (2) 단계별 검토 로그 뷰 (학습 모드 및 알고리즘 기록) -->
+          <div id="viewLogContainer" style="display: none; flex-direction: column; flex: 1; overflow: hidden;">
+            <div style="padding: 10px 14px; background: #F8FAFC; border-bottom: 1.5px solid var(--border); font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">
+              크루스칼 탐욕 알고리즘의 모든 단계별 채택·제외 사유가 실시간 기록됩니다.
+            </div>
+            <div class="log-table-wrap">
+              <table class="log-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">단계</th>
+                    <th style="width: 70px;">도로</th>
+                    <th style="width: 50px;">비용</th>
+                    <th style="width: 65px;">판정</th>
+                    <th>상세 사유</th>
+                  </tr>
+                </thead>
+                <tbody id="reviewLogTableBody">
+                  <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                      아직 검토된 도로가 없습니다.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. TURN INTERMISSION SCREEN (비밀 유지 및 턴 교대) -->
+    <div id="screen-intermission" class="screen">
+      <div class="intermission-card">
+        <div class="intermission-icon">🏁</div>
+        <h2 class="intermission-title" id="interPrevPlayerNotice">플레이어 1 건설 종료!</h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">
+          현재 플레이어의 도전이 완료되었습니다.
+        </p>
+
+        <div class="intermission-secret-box">
+          <span>🔒</span>
+          <span>공정 경쟁 보안: 다음 참가자가 전략을 볼 수 없도록 지도와 도로망을 완전히 숨겼습니다.</span>
+        </div>
+
+        <div class="next-player-banner">
+          <div class="next-player-label">NEXT TURN • 다음 도전자</div>
+          <div class="next-player-name" id="interNextPlayerName">플레이어 2</div>
+        </div>
+
+        <button class="btn btn-primary" style="width: 100%; font-size: 1.15rem; padding: 16px;" onclick="proceedNextPlayerTurn()">
+          내 차례 시작하기 🚀
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. RESULT SCREEN (1인용 싱글 or 2~4인용 종합 랭킹) -->
+    <div id="screen-result" class="screen">
+      <!-- (A) 1인용 결과 카드 -->
+      <div class="result-card" id="singleResultBox">
+        <div class="result-badge" id="resBadge">🏆 PERFECT CITY</div>
+        <h2 class="result-title" id="resTitle">완벽한 스마트시티 건설!</h2>
+        <p class="result-subtitle" id="resSubtitle">
+          크루스칼 알고리즘과 동일한 수학적 최소 비용으로 모든 친환경 시설을 연결했습니다.
+        </p>
+
+        <div class="result-stats-table">
+          <div class="result-stat-box">
+            <div class="label">나의 도로 건설 비용</div>
+            <div class="val" id="resMyCost" style="color: var(--amber);">13억</div>
+          </div>
+          <div class="result-stat-box">
+            <div class="label">수학적 최소 비용(MST)</div>
+            <div class="val" id="resOptimalCost" style="color: #059669;">13억</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 14px; justify-content: center;">
+          <button class="btn btn-primary" onclick="restartSameDifficulty()">한 판 더 하기 🔄</button>
+          <button class="btn btn-outline" onclick="exitToTitle()">메인 화면 🏠</button>
+        </div>
+      </div>
+
+      <!-- (B) 2~4인용 멀티플레이어 최종 리더보드 -->
+      <div class="multi-leaderboard-card" id="multiResultBox" style="display: none;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div class="result-badge perfect" id="multiLeaderboardBadge">👑 LINK CITY 챔피언십</div>
+          <h2 class="result-title" style="margin-bottom: 6px;">최종 순위 발표</h2>
+          <p style="color: var(--text-muted); font-size: 0.95rem;">
+            모든 플레이어가 동일한 지도와 제한시간에서 경쟁한 최종 결과입니다.
+          </p>
+        </div>
+
+        <!-- 1등 챔피언 포디움 하이라이트 -->
+        <div class="podium-winner-banner" id="podiumBanner">
+          <div class="podium-winner-title">🏆 CHAMPION • 최종 1위</div>
+          <div class="podium-winner-name" id="championName">홍길동</div>
+          <div class="podium-winner-stat" id="championStat">건설비: 13억 (MST 완벽 달성) • 소요 시간: 1분 15초</div>
+        </div>
+
+        <!-- 전체 순위 목록 (1위 ~ 4위) -->
+        <div class="rankings-list" id="rankingsList">
+          <!-- 동적으로 생성되는 랭킹 카드 -->
+        </div>
+
+        <div style="display: flex; gap: 14px; justify-content: center; margin-top: 10px;">
+          <button class="btn btn-primary" onclick="restartSameDifficulty()">같은 멤버로 다시 대결 🔄</button>
+          <button class="btn btn-outline" onclick="exitToTitle()">메인 화면 🏠</button>
+        </div>
+      </div>
+
+      <!-- (C) 공통: 게임 종료 상세 비교 리포트 & 크루스칼 알고리즘 단계별 재생기 -->
+      <div class="report-section" id="gameReportSection">
+        <div class="report-header">
+          <div class="report-title-group">
+            <span style="font-size: 1.5rem;">📊</span>
+            <div>
+              <h3 class="report-title">스마트 인프라 비교 리포트 & 크루스칼 알고리즘 재생</h3>
+              <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                나의 연결망과 크루스칼 알고리즘이 도출한 수학적 최적해(MST)를 단계별로 정밀 분석합니다.
+              </p>
+            </div>
+          </div>
+
+          <!-- 연결망 시각화 토글 버튼 -->
+          <div class="view-toggle-bar">
+            <button class="view-toggle-btn active" id="btnViewMine" onclick="toggleReportView('player')">
+              👷 나의 연결망 보기
+            </button>
+            <button class="view-toggle-btn" id="btnViewOptimal" onclick="toggleReportView('optimal')">
+              🤖 크루스칼 최적 연결망 보기
+            </button>
+          </div>
+        </div>
+
+        <!-- 비용 비교 및 판정 지표 그리드 -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px;">
+          <div style="background: #F8FAFC; border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 16px;">
+            <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted);">나의 총 건설비</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--amber);" id="repMyCost">13억</div>
+          </div>
+          <div style="background: #F8FAFC; border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 16px;">
+            <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted);">수학적 최소 비용</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: #059669;" id="repOptimalCost">13억</div>
+          </div>
+          <div style="background: #F8FAFC; border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 16px;">
+            <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted);">비용 차이</div>
+            <div style="font-size: 1.4rem; font-weight: 900;" id="repCostDiff">+0억</div>
+          </div>
+          <div style="background: #F8FAFC; border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">알고리즘 판정</div>
+            <div id="repVerdictBadge">
+              <span class="diff-badge-highlight perfect">🏆 최적 MST 달성</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 지도 시각화 카드 -->
+        <div style="background: linear-gradient(180deg, #F0FDF4 0%, #E0F2FE 100%); border: 1.5px solid var(--border); border-radius: 16px; padding: 14px; margin-bottom: 18px; box-shadow: 0 4px 14px rgba(0,0,0,0.04);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 0 4px;">
+            <div style="font-weight: 800; font-size: 0.95rem; color: #0F172A;" id="repMapHeaderTitle">
+              👷 [나의 연결망] 건설 현황
+            </div>
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted);" id="repMapHeaderSub">
+              선택한 도로: 0개 • 총 비용: 0억
+            </div>
+          </div>
+          <div style="width: 100%; max-height: 480px; overflow: hidden; border-radius: 12px; border: 1.5px solid rgba(0,0,0,0.08); background: #EFF6FF;">
+            <svg id="reportMapSvg" viewBox="0 0 1000 860" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: auto; max-height: 480px; display: block;">
+              <!-- 0. 배경 (바다 + 친환경 인공섬 지형) -->
+              <rect width="1000" height="860" fill="#BAE6FD" pointer-events="none"/>
+              <path d="M 60,90 Q 500,20 940,90 Q 990,450 900,780 Q 500,840 70,760 Q 10,420 60,90 Z" fill="#86EFAC" stroke="#4ADE80" stroke-width="6" pointer-events="none"/>
+              <path d="M 380,380 C 420,320 540,320 580,380 C 620,440 680,450 670,520 C 650,600 520,620 460,570 C 400,520 340,440 380,380 Z" fill="#38BDF8" stroke="#0284C7" stroke-width="3" pointer-events="none"/>
+              
+              <!-- 1. 도로망 레이어 -->
+              <g id="repEdgesLayer"></g>
+              <!-- 2. 가중치 뱃지 레이어 -->
+              <g id="repWeightsLayer"></g>
+              <!-- 3. 시설 노드 레이어 -->
+              <g id="repNodesLayer"></g>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 크루스칼 알고리즘 단계별 인터랙티브 재생기 -->
+        <div class="replay-card" id="replayCard">
+          <div class="replay-top-row">
+            <div class="replay-step-title">
+              <span>▶️</span>
+              <span>크루스칼 탐욕 알고리즘 단계별 재생 (Step-by-Step Replayer)</span>
+              <span class="cards-count-badge" id="replayStepCounter">Step 0 / 0</span>
+            </div>
+
+            <!-- 재생 컨트롤러 버튼들 -->
+            <div class="replay-controls">
+              <button class="replay-btn" onclick="seekReplayFirst()" title="처음으로">⏮</button>
+              <button class="replay-btn" onclick="seekReplayPrev()" title="이전 단계">◀</button>
+              <button class="replay-btn primary" id="btnReplayPlayToggle" onclick="toggleReplayPlay()">
+                ▶ 재생
+              </button>
+              <button class="replay-btn" onclick="seekReplayNext()" title="다음 단계">▶</button>
+              <button class="replay-btn" onclick="seekReplayLast()" title="끝으로">⏭</button>
+            </div>
+          </div>
+
+          <!-- 타임라인 슬라이더 -->
+          <div class="replay-slider-wrap">
+            <span style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted);">START</span>
+            <input type="range" class="replay-slider" id="replaySlider" min="0" max="0" value="0" oninput="onReplaySliderInput(this.value)" />
+            <span style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted);" id="replayMaxStepLabel">END</span>
+          </div>
+
+          <!-- 현재 재생 단계 해설 박스 -->
+          <div class="replay-info-box" id="replayInfoBox">
+            재생 버튼을 누르거나 슬라이더를 조작하여 크루스칼 알고리즘이 도로를 채택하고 제외하는 과정을 관찰하세요.
+          </div>
+        </div>
+      </div>
+
+      <!-- (D) 보너스 미래 도시 과학 퀴즈 (게임 점수 영향 0%, 즉각 피드백 & 해설) -->
+      <div class="bonus-quiz-section" id="bonusQuizSection">
+        <div class="bonus-quiz-header">
+          <div class="bonus-quiz-title-box">
+            <span style="font-size: 1.6rem;">💡</span>
+            <div>
+              <div class="bonus-quiz-title">미래 도시 과학 상식 보너스 퀴즈</div>
+              <p style="font-size: 0.84rem; color: var(--text-muted); margin-top: 2px;">
+                도시 시설에 적용된 첨단 과학 원리를 확인해보세요! (게임 점수 및 랭킹 영향 0%)
+              </p>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="bonus-quiz-pill">🎯 과학 보너스</span>
+            <button class="btn btn-outline btn-sm" onclick="nextRandomScienceQuiz()" title="다른 문제 풀기" style="padding: 6px 14px; font-size: 0.82rem;">
+              다른 문제 🔄
+            </button>
+          </div>
+        </div>
+
+        <div class="bonus-quiz-question-box">
+          <div class="bonus-quiz-facility-tag" id="bqFacilityTag">
+            <span>☀️</span>
+            <span id="bqFacilityName">태양광 발전소</span>
+            <span>•</span>
+            <span id="bqTopic" style="color: #64748B;">빛에너지와 전기에너지</span>
+          </div>
+          <div class="bonus-quiz-q-text" id="bqQuestionText">
+            태양광 발전소에서 태양의 빛에너지를 전기에너지로 직접 변환할 때 일어나는 핵심 과학 원리는 무엇일까요?
+          </div>
+        </div>
+
+        <div class="bonus-quiz-choices-grid" id="bqChoicesGrid">
+          <!-- 동적 4지 선다 버튼 (choice-btn) -->
+        </div>
+
+        <!-- 피드백 & 과학 원리 해설 박스 -->
+        <div id="bqFeedbackBox" style="display: none;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================= 5. 중·고등학생용 수학·과학 개념 가이드 모달 ================= -->
+  <div class="modal-backdrop" id="conceptModalBackdrop" onclick="handleModalBackdropClick(event)">
+    <div class="concept-modal">
+      <div class="concept-header">
+        <div>
+          <h2 class="concept-title">
+            <span>📖</span>
+            <span>수학·과학 융합 핵심 개념 사전</span>
+          </h2>
+          <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 4px;">
+            LINK CITY 2050에 적용된 그래프 이론과 친환경 도시 인프라의 핵심 수학 원리입니다.
+          </p>
+        </div>
+        <button class="concept-close-btn" onclick="closeConceptModal()">✕</button>
+      </div>
+
+      <div class="concept-grid">
+        <!-- 1. 정점 (Vertex / Node) -->
+        <div class="concept-card">
+          <div class="concept-card-top">
+            <span class="concept-icon">🏛️</span>
+            <div>
+              <div class="concept-term">정점 (Vertex / Node)</div>
+              <div class="concept-subterm">도시의 핵심 거점 시설</div>
+            </div>
+          </div>
+          <p class="concept-desc">
+            스마트시티에서 독립적인 기능을 수행하는 <strong>핵심 시설</strong>(태양광 발전소, 병원, 시청, 농업 돔 등)입니다. 그래프 이론에서는 연결의 대상이 되는 점(Point)을 의미합니다.
+          </p>
+          <div class="concept-formula">수학 기호: V = { v₁, v₂, ..., vₙ }</div>
+        </div>
+
+        <!-- 2. 간선 (Edge) -->
+        <div class="concept-card">
+          <div class="concept-card-top">
+            <span class="concept-icon">🛣️</span>
+            <div>
+              <div class="concept-term">간선 (Edge)</div>
+              <div class="concept-subterm">시설과 시설을 잇는 도로망</div>
+            </div>
+          </div>
+          <p class="concept-desc">
+            두 시설 사이를 직접 연결하여 자율주행 차량, 청정 에너지, 수자원, 데이터가 이동할 수 있도록 건설하는 <strong>인프라 도로선</strong>입니다.
+          </p>
+          <div class="concept-formula">수학 기호: e = (u, v) (두 정점 u와 v의 쌍)</div>
+        </div>
+
+        <!-- 3. 가중치 (Weight) -->
+        <div class="concept-card">
+          <div class="concept-card-top">
+            <span class="concept-icon">💰</span>
+            <div>
+              <div class="concept-term">가중치 (Weight)</div>
+              <div class="concept-subterm">도로 1개당 건설 비용(억원)</div>
+            </div>
+          </div>
+          <p class="concept-desc">
+            도로를 건설하는 데 투입되는 <strong>재정 비용(억원) 또는 소모 에너지</strong>입니다. 지형 난이도, 거리, 터널 유무에 따라 도로마다 다른 가중치를 갖습니다.
+          </p>
+          <div class="concept-formula">가중치 함수: w(e) &gt; 0 (양의 정수 비용)</div>
+        </div>
+
+        <!-- 4. 사이클 (Cycle / 순환선) -->
+        <div class="concept-card">
+          <div class="concept-card-top">
+            <span class="concept-icon">🔄</span>
+            <div>
+              <div class="concept-term">사이클 (Cycle / 순환선)</div>
+              <div class="concept-subterm">닫힌 폐루프 (불필요한 중복)</div>
+            </div>
+          </div>
+          <p class="concept-desc">
+            어떤 시설에서 출발하여 도로들을 거쳐 <strong>다시 출발 시설로 되돌아올 수 있는 닫힌 순환 경로</strong>입니다. 이미 연결된 시설들 사이에 또 도로를 놓는 것은 예산 낭비(중복 투자)입니다!
+          </p>
+          <div class="concept-formula">트리(Tree)의 핵심 조건: 사이클이 전혀 없음</div>
+        </div>
+
+        <!-- 5. 최소 신장 트리 (MST) -->
+        <div class="concept-card">
+          <div class="concept-card-top">
+            <span class="concept-icon">🌲</span>
+            <div>
+              <div class="concept-term">최소 신장 트리 (MST)</div>
+              <div class="concept-subterm">Minimum Spanning Tree</div>
+            </div>
+          </div>
+          <p class="concept-desc">
+            모든 <strong>N개의 시설을 하나도 빠짐없이 연결</strong>하면서, 사이클이 없고, 총 건설비(가중치의 합)가 <strong>수학적으로 '가장 최소'</strong>가 되는 최적의 인프라 네트워크입니다.
+          </p>
+          <div class="concept-formula">간선 수 공식: 반드시 (정점 수 N) - 1 개!</div>
+        </div>
+
+        <!-- 6. 크루스칼 알고리즘 (Kruskal's Algorithm) -->
+        <div class="concept-card">
+          <div class="concept-card-top">
+            <span class="concept-icon">⚡</span>
+            <div>
+              <div class="concept-term">크루스칼 알고리즘</div>
+              <div class="concept-subterm">탐욕법 (Greedy Method)</div>
+            </div>
+          </div>
+          <p class="concept-desc">
+            1. 모든 도로를 <strong>가장 저렴한 비용(가중치 오름차순)</strong>부터 정렬합니다.<br/>
+            2. 비용이 낮은 순서대로 살피며, <strong>사이클을 만들지 않는 도로만 채택</strong>합니다.<br/>
+            3. 도로가 <strong>N - 1개</strong> 모이면 종료하여 100% 최적의 MST를 완성합니다!
+          </p>
+          <div class="concept-formula">Union-Find 자료구조로 사이클을 초고속 판정</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 6. 미래 도시 8대 시설 과학 도감 모달 ================= -->
+  <div class="modal-backdrop" id="scienceAtlasModalBackdrop" onclick="handleAtlasModalBackdropClick(event)">
+    <div class="atlas-modal">
+      <div class="concept-header">
+        <div>
+          <h2 class="concept-title">
+            <span>🔬</span>
+            <span>2050 미래 도시 첨단 과학 도감</span>
+          </h2>
+          <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 4px;">
+            LINK CITY 2050을 구성하는 8대 핵심 시설의 과학적 원리와 청정 지속가능 기술입니다.
+          </p>
+        </div>
+        <button class="concept-close-btn" onclick="closeScienceAtlasModal()">✕</button>
+      </div>
+
+      <div class="atlas-grid" id="scienceAtlasGrid">
+        <!-- 8대 시설 카드 목록 (동적 렌더링) -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ================= 0. 2050 미래 도시 과학 학습 콘텐츠 & 퀴즈 데이터 =================
+    const FACILITY_SCIENCE_DATA = {
+      SOLAR: {
+        icon: 'SOLAR',
+        facilityName: '태양광 발전소',
+        topic: '빛에너지와 전기에너지',
+        summary: '태양 전지판의 반도체 물질이 빛에너지를 흡수하면 전자가 방출되는 광전효과(광기전력 효과)를 통해 전기에너지를 직접 생산합니다. 생산된 전기는 고효율 에너지 저장 장치(ESS)에 저장되어 날씨 변화와 상관없이 도시에 안정적으로 공급됩니다. 온실가스를 전혀 배출하지 않는 대표적인 친환경 청정 발전 기술입니다.',
+        keyConcept: '광전효과 & 에너지 저장 시스템(ESS)',
+        iconSymbol: '☀️'
+      },
+      HOSPITAL: {
+        icon: 'HOSPITAL',
+        facilityName: '스마트 병원',
+        topic: '의료 데이터와 원격 진료',
+        summary: '웨어러블 센서와 사물인터넷(IoT) 장비로 수집된 환자의 생체 신호가 초고속 네트워크를 통해 실시간 의료 데이터로 전송됩니다. 인공지능이 환자의 상태 이상을 감지하고, 원격지의 전문의가 고해상도 영상 데이터를 보며 실시간 비대면 진료를 진행합니다. 응급 상황에서도 골든타임을 확보할 수 있는 지능형 의료 인프라입니다.',
+        keyConcept: 'IoT 생체 신호 & AI 원격 협진',
+        iconSymbol: '🏥'
+      },
+      AI_LAB: {
+        icon: 'AI_LAB',
+        facilityName: 'AI 연구소',
+        topic: '인공지능과 데이터 분석',
+        summary: '도시 전역에서 수집되는 방대한 빅데이터를 인공신경망과 머신러닝 알고리즘으로 초고속 병렬 분석합니다. 에너지 소비량, 교통 흐름, 기후 이상 징후를 스스로 예측하고 도시 시스템을 최적의 상태로 제어합니다. 데이터 분석을 통해 인간의 의사결정을 보조하고 도시의 자율 운영을 이끕니다.',
+        keyConcept: '딥러닝 알고리즘 & 빅데이터 예측',
+        iconSymbol: '🧠'
+      },
+      MOBILITY: {
+        icon: 'MOBILITY',
+        facilityName: '자율주행 교통 허브',
+        topic: '센서와 자동 제어',
+        summary: '라이다(LiDAR), 레이더, 고성능 카메라 센서가 360도 주변 환경과 장애물 거리를 마이크로초 단위로 정밀 측정합니다. 차량과 도로 인프라 간 실시간 통신(V2X)을 바탕으로 제어 컴퓨터가 가속, 제동, 조향을 자동으로 정밀 조절합니다. 운전자 없이도 교통 체증과 사고를 획기적으로 줄이는 스마트 모빌리티의 중심입니다.',
+        keyConcept: '라이다(LiDAR) 센서 & V2X 자동 제어',
+        iconSymbol: '🚗'
+      },
+      RESIDENCE: {
+        icon: 'RESIDENCE',
+        facilityName: '친환경 주거단지',
+        topic: '에너지 절약 건축',
+        summary: '고성능 3중 로이(Low-E) 유리와 고단열 건축 외장재를 적용한 패시브 설계로 실내 열 손실을 차단합니다. 건물 일체형 태양광(BIPV)과 열회수 환기장치로 에너지를 자체 생산하고 냉난방 효율을 극대화합니다. 자연 채광과 빗물 재활용 시스템이 결합된 탄소중립 제로에너지 주거 공간입니다.',
+        keyConcept: '패시브 하우스 & 제로에너지 빌딩(ZEB)',
+        iconSymbol: '🏡'
+      },
+      DATA_CENTER: {
+        icon: 'DATA_CENTER',
+        facilityName: '데이터 센터',
+        topic: '정보 처리와 통신망',
+        summary: '수천 대의 고성능 서버가 양자 암호 광통신망을 통해 도시 전체의 정보 연산과 데이터 저장을 24시간 중단 없이 처리합니다. 연산 과정에서 발생하는 막대한 열은 친환경 지열 쿨링 및 외기 수랭식 냉각 기술로 신속히 식힙니다. 도시의 두뇌 역할을 하며 지능형 디지털 서비스의 기반이 됩니다.',
+        keyConcept: '양자 광통신 & 친환경 수랭식 쿨링',
+        iconSymbol: '🖥️'
+      },
+      AGRI_DOME: {
+        icon: 'AGRI_DOME',
+        facilityName: '스마트 농업 돔',
+        topic: '생육 환경 자동 제어',
+        summary: '환경 센서가 온·습도, 이산화탄소 농도, 토양 수분을 실시간 측정하고, 컴퓨터가 최적의 생육 환경을 자동으로 제어합니다. 식물 광합성에 가장 적합한 특정 파장의 LED 인공광과 순환식 영양액을 공급하여 기후 변화와 상관없이 작물을 재배합니다. 도시 내부에서 안전한 먹거리를 365일 생산하는 친환경 수직 농장입니다.',
+        keyConcept: 'LED 광합성 파장 & 스마트 팜 IoT',
+        iconSymbol: '🌿'
+      },
+      HYDROGEN: {
+        icon: 'HYDROGEN',
+        facilityName: '수소 에너지 센터',
+        topic: '수소 저장 및 연료전지',
+        summary: '신재생 전력으로 물을 전기분해(수전해)하여 만든 청정 수소를 고압 압축 및 특수 복합소재 탱크에 안전하게 저장합니다. 전력이 필요할 때 수소와 산소의 전기화학 반응을 유도하는 수소 연료전지로 순수한 물만 배출하며 고효율 전기를 생산합니다. 장기간 대용량 에너지 저장이 가능한 차세대 분산 전원입니다.',
+        keyConcept: '수전해 청정 수소 & 수소 연료전지(Fuel Cell)',
+        iconSymbol: '⚡'
+      }
+    };
+
+    const SCIENCE_QUIZZES = [
+      {
+        id: 'quiz-solar',
+        facilityIcon: 'SOLAR',
+        facilityName: '태양광 발전소',
+        topic: '빛에너지와 전기에너지',
+        question: '태양광 발전소에서 태양의 빛에너지를 전기에너지로 직접 변환할 때 일어나는 핵심 과학 원리는 무엇일까요?',
+        choices: [
+          '광전효과 (광기전력 효과)',
+          '핵융합 반응',
+          '전자기 유도 현상',
+          '물의 전기분해 반응'
+        ],
+        correctIndex: 0,
+        explanation: '태양광 발전은 특정 반도체에 빛을 비추었을 때 전자가 튀어나와 전류가 흐르는 광전효과(광기전력 효과)를 통해 빛에너지를 전기에너지로 직접 변환합니다.'
+      },
+      {
+        id: 'quiz-hospital',
+        facilityIcon: 'HOSPITAL',
+        facilityName: '스마트 병원',
+        topic: '의료 데이터와 원격 진료',
+        question: '스마트 병원에서 원격지의 환자 상태를 실시간 진단하고 진료하는 데 필수적인 핵심 기술은 무엇일까요?',
+        choices: [
+          '수경재배 순환 기술',
+          'IoT 생체 센서와 초고속 의료 데이터 통신',
+          '패시브 단열 공법',
+          '초전도 자기부상 기술'
+        ],
+        correctIndex: 1,
+        explanation: '스마트 병원은 환자의 IoT 웨어러블 센서로 맥박, 혈압, 체온 데이터를 수집하고, 초고속 통신망을 통해 전문의에게 실시간 전송하여 원격 진료를 수행합니다.'
+      },
+      {
+        id: 'quiz-ailab',
+        facilityIcon: 'AI_LAB',
+        facilityName: 'AI 연구소',
+        topic: '인공지능과 데이터 분석',
+        question: 'AI 연구소에서 스마트시티의 전력 분배와 교통 흐름을 최적화하기 위해 활용하는 핵심 데이터 분석 기술은 무엇일까요?',
+        choices: [
+          '광합성 파장 제어',
+          '머신러닝과 딥러닝 빅데이터 분석',
+          '3중 복층 유리 단열 공법',
+          '지열 냉각 쿨링 기술'
+        ],
+        correctIndex: 1,
+        explanation: 'AI 연구소는 도시 곳곳에서 수집되는 방대한 데이터를 인공신경망과 머신러닝 알고리즘으로 분석하여 미래 수요를 예측하고 도시 시스템을 스스로 제어합니다.'
+      },
+      {
+        id: 'quiz-mobility',
+        facilityIcon: 'MOBILITY',
+        facilityName: '자율주행 교통 허브',
+        topic: '센서와 자동 제어',
+        question: '자율주행 차량이 레이저 빛을 쏘아 주변 물체와의 거리를 360도로 정밀 측정하는 핵심 센서는 무엇일까요?',
+        choices: [
+          '라이다 (LiDAR) 센서',
+          '온·습도 바이오 센서',
+          '지열 열교환 센서',
+          '수소 압력 감지 센서'
+        ],
+        correctIndex: 0,
+        explanation: '라이다(LiDAR)는 레이저 펄스가 물체에 반사되어 돌아오는 시간을 측정하여 주변의 3차원 공간 지도를 마이크로초 단위로 정밀하게 그리는 핵심 센서입니다.'
+      },
+      {
+        id: 'quiz-residence',
+        facilityIcon: 'RESIDENCE',
+        facilityName: '친환경 주거단지',
+        topic: '에너지 절약 건축',
+        question: '친환경 주거단지(패시브 하우스)에서 실내 냉난방 에너지 유출을 차단하기 위해 적용하는 대표적인 건축 기술은 무엇일까요?',
+        choices: [
+          '양자 암호 병렬 연산',
+          '고단열 외장재와 열회수 환기장치',
+          '수소 연료전지 수전해',
+          '식물 광합성 LED 공급'
+        ],
+        correctIndex: 1,
+        explanation: '패시브 하우스는 고단열 3중 창호와 열회수 환기장치로 실내 열 손실을 차단하여 아주 적은 에너지만으로도 쾌적한 실내 온도를 유지합니다.'
+      },
+      {
+        id: 'quiz-datacenter',
+        facilityIcon: 'DATA_CENTER',
+        facilityName: '데이터 센터',
+        topic: '정보 처리와 통신망',
+        question: '데이터 센터에서 막대한 서버 연산 열을 식히고 안전한 도시 통신망을 유지하기 위해 사용하는 기술은 무엇일까요?',
+        choices: [
+          '화석연료 화력 발전',
+          '양자 암호 통신과 친환경 수랭식 냉각',
+          '식물 광합성 파장 촉진',
+          '자율주행 V2X 통신'
+        ],
+        correctIndex: 1,
+        explanation: '데이터 센터는 방대한 정보 통신을 양자 암호 광네트워크로 보호하며, 친환경 지열 및 수랭식 냉각 순환 기술로 서버의 고열을 전력 소모 없이 효율적으로 제어합니다.'
+      },
+      {
+        id: 'quiz-agridome',
+        facilityIcon: 'AGRI_DOME',
+        facilityName: '스마트 농업 돔',
+        topic: '생육 환경 자동 제어',
+        question: '스마트 농업 돔에서 계절과 기후 변화에 상관없이 작물을 365일 최적으로 재배하기 위한 핵심 과학 기술은 무엇일까요?',
+        choices: [
+          '환경 센서 기반 온·습도 자동 제어와 특수 파장 LED',
+          '고압 압축 수소 저장 탱크',
+          '웨어러블 생체 신호 수집',
+          '라이다 레이저 거리 측정'
+        ],
+        correctIndex: 0,
+        explanation: '스마트 농업 돔은 온·습도와 이산화탄소를 측정하는 환경 센서와 컴퓨터 자동 제어 시스템, 광합성 최적화 LED 파장을 결합하여 완벽한 생육 환경을 유지합니다.'
+      },
+      {
+        id: 'quiz-hydrogen',
+        facilityIcon: 'HYDROGEN',
+        facilityName: '수소 에너지 센터',
+        topic: '수소 저장 및 연료전지',
+        question: '수소 에너지 센터의 연료전지에서 전기를 생산하는 화학 반응의 부산물로 유일하게 배출되는 청정 물질은 무엇일까요?',
+        choices: [
+          '순수한 물 (H₂O)',
+          '이산화탄소 (CO₂)',
+          '일산화탄소 (CO)',
+          '메탄가스 (CH₄)'
+        ],
+        correctIndex: 0,
+        explanation: '수소 연료전지는 수소(H₂)와 공기 중 산소(O₂)의 전기화학 반응을 통해 전기를 생산하며, 배출물로 오직 순수한 물(H₂O)만 생성되는 친환경 발전 기술입니다.'
+      }
+    ];
+
+    // 과학 정보 플로팅 카드 열기/닫기
+    function openFacilityScienceInfo(nodeOrIcon) {
+      let iconKey = '';
+      if (typeof nodeOrIcon === 'string') {
+        iconKey = nodeOrIcon;
+      } else if (nodeOrIcon && nodeOrIcon.icon) {
+        iconKey = nodeOrIcon.icon;
+      } else if (nodeOrIcon && nodeOrIcon.id) {
+        // 아이콘이 없으면 그래프 노드에서 검색
+        const found = currentGraph && currentGraph.nodes.find(n => n.id === nodeOrIcon.id);
+        if (found) iconKey = found.icon;
+      }
+
+      const info = FACILITY_SCIENCE_DATA[iconKey] || FACILITY_SCIENCE_DATA['SOLAR'];
+      const card = document.getElementById('facilityScienceCard');
+      if (!card) return;
+
+      document.getElementById('fscIcon').textContent = info.iconSymbol;
+      document.getElementById('fscName').textContent = info.facilityName;
+      document.getElementById('fscTopic').textContent = info.topic;
+      document.getElementById('fscDesc').textContent = info.summary;
+      document.getElementById('fscKeyConcept').textContent = info.keyConcept;
+
+      card.style.display = 'flex';
+    }
+
+    function closeFacilityScienceInfo() {
+      const card = document.getElementById('facilityScienceCard');
+      if (card) card.style.display = 'none';
+    }
+
+    // 8대 시설 과학 도감 전체 모달 열기/닫기
+    function openScienceAtlasModal() {
+      const modal = document.getElementById('scienceAtlasModalBackdrop');
+      const grid = document.getElementById('scienceAtlasGrid');
+      if (!modal || !grid) return;
+
+      grid.innerHTML = '';
+      Object.keys(FACILITY_SCIENCE_DATA).forEach(key => {
+        const item = FACILITY_SCIENCE_DATA[key];
+        const card = document.createElement('div');
+        card.className = 'atlas-card';
+        card.innerHTML = 
+          '<div class="atlas-card-top">' +
+            '<span class="atlas-card-icon">' + item.iconSymbol + '</span>' +
+            '<div>' +
+              '<div class="atlas-card-name">' + item.facilityName + '</div>' +
+              '<div class="atlas-card-topic">' + item.topic + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="atlas-card-desc">' + item.summary + '</div>' +
+          '<div class="atlas-card-concept">🔬 ' + item.keyConcept + '</div>';
+        grid.appendChild(card);
+      });
+
+      modal.style.display = 'flex';
+    }
+
+    function closeScienceAtlasModal() {
+      const modal = document.getElementById('scienceAtlasModalBackdrop');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function handleAtlasModalBackdropClick(evt) {
+      if (evt.target.id === 'scienceAtlasModalBackdrop') {
+        closeScienceAtlasModal();
+      }
+    }
+
+    // 보너스 과학 퀴즈 상태 및 인터랙션
+    let currentBonusQuizIndex = -1;
+    let bonusQuizAnswered = false;
+
+    function initBonusScienceQuiz(quizIndex) {
+      const quizSection = document.getElementById('bonusQuizSection');
+      if (!quizSection) return;
+
+      if (typeof quizIndex === 'number' && quizIndex >= 0 && quizIndex < SCIENCE_QUIZZES.length) {
+        currentBonusQuizIndex = quizIndex;
+      } else {
+        currentBonusQuizIndex = Math.floor(Math.random() * SCIENCE_QUIZZES.length);
+      }
+      bonusQuizAnswered = false;
+
+      const q = SCIENCE_QUIZZES[currentBonusQuizIndex];
+      const facilityInfo = FACILITY_SCIENCE_DATA[q.facilityIcon] || { iconSymbol: '🔬' };
+
+      const tagEl = document.getElementById('bqFacilityTag');
+      if (tagEl) {
+        tagEl.innerHTML = 
+          '<span>' + facilityInfo.iconSymbol + '</span> ' +
+          '<span>' + q.facilityName + '</span> ' +
+          '<span style="color: #94A3B8;">•</span> ' +
+          '<span style="color: #0284C7;">' + q.topic + '</span>';
+      }
+
+      const qTextEl = document.getElementById('bqQuestionText');
+      if (qTextEl) qTextEl.textContent = 'Q. ' + q.question;
+
+      const choicesGrid = document.getElementById('bqChoicesGrid');
+      if (choicesGrid) {
+        choicesGrid.innerHTML = '';
+        q.choices.forEach((choice, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'choice-btn';
+          btn.id = 'choice-btn-' + idx;
+          btn.onclick = () => submitScienceQuizAnswer(idx);
+          btn.innerHTML = '<span class="choice-num">' + (idx + 1) + '</span> <span>' + choice + '</span>';
+          choicesGrid.appendChild(btn);
+        });
+      }
+
+      const feedbackBox = document.getElementById('bqFeedbackBox');
+      if (feedbackBox) {
+        feedbackBox.style.display = 'none';
+        feedbackBox.innerHTML = '';
+      }
+    }
+
+    function submitScienceQuizAnswer(selectedIndex) {
+      if (bonusQuizAnswered) return;
+      bonusQuizAnswered = true;
+
+      const q = SCIENCE_QUIZZES[currentBonusQuizIndex];
+      const isCorrect = (selectedIndex === q.correctIndex);
+
+      // 버튼 스타일 업데이트
+      q.choices.forEach((_, idx) => {
+        const btn = document.getElementById('choice-btn-' + idx);
+        if (!btn) return;
+        btn.disabled = true;
+
+        if (idx === selectedIndex) {
+          btn.classList.add(isCorrect ? 'selected-correct' : 'selected-wrong');
+        } else if (idx === q.correctIndex) {
+          btn.classList.add('show-correct');
+        }
+      });
+
+      // 피드백 박스 노출
+      const feedbackBox = document.getElementById('bqFeedbackBox');
+      if (feedbackBox) {
+        feedbackBox.className = 'quiz-feedback-box ' + (isCorrect ? 'correct' : 'wrong');
+        feedbackBox.innerHTML = 
+          '<div class="quiz-feedback-header">' +
+            '<span>' + (isCorrect ? '🎉 정답입니다!' : '💡 아쉽네요!') + '</span>' +
+            '<span style="font-size: 0.82rem; font-weight: 700; color: #64748B; margin-left: auto;">(기본 게임 점수 불변 • 상식 보너스)</span>' +
+          '</div>' +
+          '<div class="quiz-feedback-desc">' +
+            '<strong>정답: ' + (q.correctIndex + 1) + '번. ' + q.choices[q.correctIndex] + '</strong><br/>' +
+            q.explanation +
+          '</div>';
+        feedbackBox.style.display = 'block';
+      }
+    }
+
+    function nextRandomScienceQuiz() {
+      let nextIdx = Math.floor(Math.random() * SCIENCE_QUIZZES.length);
+      if (SCIENCE_QUIZZES.length > 1 && nextIdx === currentBonusQuizIndex) {
+        nextIdx = (nextIdx + 1) % SCIENCE_QUIZZES.length;
+      }
+      initBonusScienceQuiz(nextIdx);
+    }
+
+    // 1. 고정 그래프 데이터 (8대 친환경 시설 아이콘 매핑 및 충돌 없는 가중치 라벨 좌표)
+    const GRAPHS = {
+      EASY: {
+        id: 'EASY',
+        name: '네오 송도 스마트 아일랜드',
+        timeLimit: 180, // 3분
+        nodes: [
+          { id: 'A', name: 'AI 연구소', icon: 'AI_LAB', x: 220, y: 220 },
+          { id: 'B', name: '태양광 발전소', icon: 'SOLAR', x: 500, y: 150 },
+          { id: 'C', name: '스마트 병원', icon: 'HOSPITAL', x: 780, y: 220 },
+          { id: 'D', name: '친환경 주거단지', icon: 'RESIDENCE', x: 280, y: 540 },
+          { id: 'E', name: '자율주행 허브', icon: 'MOBILITY', x: 650, y: 460 },
+          { id: 'F', name: '스마트 농업 돔', icon: 'AGRI_DOME', x: 500, y: 740 },
+        ],
+        edges: [
+          { id: 'e_AB', source: 'A', target: 'B', weight: 2, name: '초전도 그리드', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_BC', source: 'B', target: 'C', weight: 4, name: '에코 케이블', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_AD', source: 'A', target: 'D', weight: 3, name: '자율주행 도로', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_BE', source: 'B', target: 'E', weight: 3, name: '충전 회랑', badgeT: 0.48, badgeOffset: 0 },
+          { id: 'e_CE', source: 'C', target: 'E', weight: 2, name: '자기부상 피더', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_DE', source: 'D', target: 'E', weight: 4, name: '바이오 튜브', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_DF', source: 'D', target: 'F', weight: 5, name: '스마트 수로', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_EF', source: 'E', target: 'F', weight: 3, name: '하이퍼루프선', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_AE', source: 'A', target: 'E', weight: 6, name: '중앙 간선로', badgeT: 0.45, badgeOffset: 0 },
+        ]
+      },
+      NORMAL: {
+        id: 'NORMAL',
+        name: '판교 테크노 밸리 2050',
+        timeLimit: 240, // 4분
+        nodes: [
+          { id: 'N1', name: '데이터 센터', icon: 'DATA_CENTER', x: 160, y: 160 },
+          { id: 'N2', name: '태양광 발전소', icon: 'SOLAR', x: 500, y: 120 },
+          { id: 'N3', name: '자율주행 허브', icon: 'MOBILITY', x: 280, y: 420 },
+          { id: 'N4', name: 'AI 연구소', icon: 'AI_LAB', x: 560, y: 360 },
+          { id: 'N5', name: '수소 에너지 센터', icon: 'HYDROGEN', x: 160, y: 720 },
+          { id: 'N6', name: '스마트 농업 돔', icon: 'AGRI_DOME', x: 860, y: 320 },
+          { id: 'N7', name: '스마트 병원', icon: 'HOSPITAL', x: 480, y: 740 },
+          { id: 'N8', name: '친환경 주거단지', icon: 'RESIDENCE', x: 860, y: 740 },
+        ],
+        edges: [
+          { id: 'e_N1N2', source: 'N1', target: 'N2', weight: 3, name: '솔라 그리드', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_N1N3', source: 'N1', target: 'N3', weight: 2, name: '광통신 케이블', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_N2N4', source: 'N2', target: 'N4', weight: 4, name: '양자 전력선', badgeT: 0.45, badgeOffset: 0 },
+          { id: 'e_N3N4', source: 'N3', target: 'N4', weight: 3, name: '도심 데이터망', badgeT: 0.45, badgeOffset: 0 },
+          { id: 'e_N3N5', source: 'N3', target: 'N5', weight: 5, name: '수소 수송로', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_N4N6', source: 'N4', target: 'N6', weight: 2, name: '생태 바이오망', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_N2N6', source: 'N2', target: 'N6', weight: 6, name: '외곽 송전로', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_N5N6', source: 'N5', target: 'N6', weight: 4, name: '에너지 연결관', badgeT: 0.32, badgeOffset: 0 },
+          { id: 'e_N5N7', source: 'N5', target: 'N7', weight: 3, name: '친환경 순환선', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_N6N8', source: 'N6', target: 'N8', weight: 3, name: '스마트 항공로', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_N7N8', source: 'N7', target: 'N8', weight: 2, name: '수자원 배관망', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_N1N5', source: 'N1', target: 'N5', weight: 7, name: '서부 순환선', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_N4N8', source: 'N4', target: 'N8', weight: 5, name: '동부 고속망', badgeT: 0.72, badgeOffset: 0 },
+        ]
+      },
+      HARD: {
+        id: 'HARD',
+        name: '메가 에코폴리스 센트럴 2050',
+        timeLimit: 300, // 5분
+        nodes: [
+          { id: 'H1', name: 'AI 연구소', icon: 'AI_LAB', x: 160, y: 160 },
+          { id: 'H2', name: '태양광 발전소', icon: 'SOLAR', x: 480, y: 120 },
+          { id: 'H3', name: '데이터 센터', icon: 'DATA_CENTER', x: 260, y: 340 },
+          { id: 'H4', name: '스마트 병원', icon: 'HOSPITAL', x: 620, y: 260 },
+          { id: 'H5', name: '자율주행 허브', icon: 'MOBILITY', x: 240, y: 540 },
+          { id: 'H6', name: '친환경 주거단지', icon: 'RESIDENCE', x: 840, y: 380 },
+          { id: 'H7', name: '수소 에너지 센터', icon: 'HYDROGEN', x: 160, y: 740 },
+          { id: 'H8', name: '스마트 농업 돔', icon: 'AGRI_DOME', x: 480, y: 740 },
+          { id: 'H9', name: '친환경 주거단지', icon: 'RESIDENCE', x: 740, y: 640 },
+          { id: 'H10', name: '스마트 병원', icon: 'HOSPITAL', x: 880, y: 780 },
+        ],
+        edges: [
+          { id: 'e_H1H2', source: 'H1', target: 'H2', weight: 2, name: '초전도 선로 1', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_H1H3', source: 'H1', target: 'H3', weight: 3, name: '기후 제어망', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_H2H4', source: 'H2', target: 'H4', weight: 4, name: '융합 에너지관', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_H3H4', source: 'H3', target: 'H4', weight: 3, name: '연구망 케이블', badgeT: 0.72, badgeOffset: 0 },
+          { id: 'e_H3H5', source: 'H3', target: 'H5', weight: 2, name: '터미널 전력선', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_H4H6', source: 'H4', target: 'H6', weight: 4, name: '바이오 브릿지', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_H5H6', source: 'H5', target: 'H6', weight: 3, name: '하이퍼 에코선', badgeT: 0.68, badgeOffset: 0 },
+          { id: 'e_H5H7', source: 'H5', target: 'H7', weight: 5, name: '지열 연결로', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_H6H8', source: 'H6', target: 'H8', weight: 2, name: '자동 물류 파이프', badgeT: 0.45, badgeOffset: 0 },
+          { id: 'e_H7H8', source: 'H7', target: 'H8', weight: 4, name: '남부 에너지선', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_H7H9', source: 'H7', target: 'H9', weight: 3, name: '순환 정화관', badgeT: 0.35, badgeOffset: 0 },
+          { id: 'e_H8H9', source: 'H8', target: 'H9', weight: 3, name: '스마트 공급선', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_H8H10', source: 'H8', target: 'H10', weight: 4, name: '생태 배송로', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_H9H10', source: 'H9', target: 'H10', weight: 2, name: '해양 정화 수로', badgeT: 0.5, badgeOffset: 0 },
+          { id: 'e_H2H5', source: 'H2', target: 'H5', weight: 6, name: '중앙 백본망', badgeT: 0.28, badgeOffset: 0 },
+          { id: 'e_H4H7', source: 'H4', target: 'H7', weight: 5, name: '서브 그리드', badgeT: 0.28, badgeOffset: 0 },
+          { id: 'e_H6H10', source: 'H6', target: 'H10', weight: 6, name: '동부 간선망', badgeT: 0.5, badgeOffset: 0 },
+        ]
+      }
+    };
+
+    // 2. 수학 코어 알고리즘 (Union-Find)
+    class UnionFind {
+      constructor(elements) {
+        this.parent = new Map();
+        this.rank = new Map();
+        for (const el of elements) {
+          this.parent.set(el, el);
+          this.rank.set(el, 0);
+        }
+      }
+      find(x) {
+        if (!this.parent.has(x)) return x;
+        if (this.parent.get(x) === x) return x;
+        const root = this.find(this.parent.get(x));
+        this.parent.set(x, root);
+        return root;
+      }
+      union(x, y) {
+        const rootX = this.find(x);
+        const rootY = this.find(y);
+        if (rootX === rootY) return false;
+        const rX = this.rank.get(rootX) || 0;
+        const rY = this.rank.get(rootY) || 0;
+        if (rX < rY) this.parent.set(rootX, rootY);
+        else if (rX > rY) this.parent.set(rootY, rootX);
+        else {
+          this.parent.set(rootY, rootX);
+          this.rank.set(rootX, rX + 1);
+        }
+        return true;
+      }
+    }
+
+    function kruskal(graph) {
+      const nodeIds = graph.nodes.map(n => n.id);
+      const targetEdgeCount = nodeIds.length - 1;
+      const sortedEdges = [...graph.edges].sort((a, b) => a.weight - b.weight);
+      const uf = new UnionFind(nodeIds);
+      const mstEdges = [];
+      let totalCost = 0;
+
+      for (const edge of sortedEdges) {
+        if (uf.union(edge.source, edge.target)) {
+          mstEdges.push(edge);
+          totalCost += edge.weight;
+          if (mstEdges.length === targetEdgeCount) break;
+        }
+      }
+
+      return { mstEdges, totalCost };
+    }
+
+    function hasCycle(edges, nodeIds) {
+      const uf = new UnionFind(nodeIds);
+      for (const e of edges) {
+        if (!uf.union(e.source, e.target)) return true;
+      }
+      return false;
+    }
+
+    function isConnected(edges, nodeIds) {
+      if (nodeIds.length <= 1) return true;
+      if (edges.length < nodeIds.length - 1) return false;
+      const uf = new UnionFind(nodeIds);
+      for (const e of edges) uf.union(e.source, e.target);
+      const root = uf.find(nodeIds[0]);
+      for (let i = 1; i < nodeIds.length; i++) {
+        if (uf.find(nodeIds[i]) !== root) return false;
+      }
+      return true;
+    }
+
+    // 미검토 간선 중 가중치가 가장 작은 후보 간선 목록 반환 (동률 가중치 복수 인정)
+    function getAvailableMinimumEdges(unreviewedEdges) {
+      if (!unreviewedEdges || unreviewedEdges.length === 0) return [];
+      const minWeight = Math.min(...unreviewedEdges.map(e => e.weight));
+      return unreviewedEdges.filter(e => e.weight === minWeight);
+    }
+
+    // 크루스칼 알고리즘 단계별 검토 및 판단 상세 사유 기록 산출 (순수 함수)
+    function kruskalWithHistory(graph) {
+      const nodeIds = graph.nodes.map(n => n.id);
+      const targetEdgeCount = Math.max(0, nodeIds.length - 1);
+      const sortedEdges = [...graph.edges].sort((a, b) => a.weight - b.weight);
+      const uf = new UnionFind(nodeIds);
+      const steps = [];
+      const currentMstEdges = [];
+      let currentTotalCost = 0;
+
+      let stepNumber = 1;
+      for (const edge of sortedEdges) {
+        const isUnionSuccess = uf.union(edge.source, edge.target);
+        if (isUnionSuccess) {
+          currentMstEdges.push(edge);
+          currentTotalCost += edge.weight;
+          const targetReached = currentMstEdges.length === targetEdgeCount;
+          steps.push({
+            stepNumber,
+            edge,
+            decision: 'ACCEPTED',
+            reason: \`[\${edge.source}]와 [\${edge.target}] 독립 시설 그룹을 연결하여 병합합니다. (사이클 없음)\`,
+            createsCycle: false,
+            currentMstEdges: [...currentMstEdges],
+            currentTotalCost,
+            targetReached
+          });
+          if (targetReached) break;
+        } else {
+          steps.push({
+            stepNumber,
+            edge,
+            decision: 'SKIPPED',
+            reason: \`[\${edge.source}]와 [\${edge.target}]는 이미 다른 경로로 연결되어 있어 순환선(사이클)이 발생하므로 제외합니다.\`,
+            createsCycle: true,
+            currentMstEdges: [...currentMstEdges],
+            currentTotalCost,
+            targetReached: false
+          });
+        }
+        stepNumber++;
+      }
+
+      return {
+        steps,
+        finalMstEdges: currentMstEdges,
+        finalCost: currentTotalCost,
+        targetEdgeCount
+      };
+    }
+
+    // 3. 상태 관리 변수
+    let mainPlayMode = 'FREE'; // 'FREE' (자유 건설 1~4인) | 'LEARN' (크루스칼 단계별 학습)
+    let rightPanelTab = 'cards'; // 'cards' | 'log'
+    let gameMode = 1; // 1: 챌린지, 2: 듀얼, 3: 리그, 4: 챔피언십
+    let playerNames = ['플레이어 1', '플레이어 2', '플레이어 3', '플레이어 4'];
+    let currentPlayerIndex = 0;
+    let playerRecords = []; // 각 플레이어별 독립 기록 보관소
+    let currentDifficulty = 'EASY';
+    let currentGraph = GRAPHS.EASY;
+    let selectedEdgeIds = [];
+    let history = [];
+    let timerSeconds = 180;
+    let timerInterval = null;
+    let optimalMst = null;
+
+    // 학습 모드 전용 상태
+    let learnReviewedEdgeIds = [];
+    let learnAcceptedEdgeIds = [];
+    let learnSkippedEdgeIds = [];
+    let learnSteps = [];
+    let currentInspectingEdge = null;
+    let learnStepNumber = 1;
+    let quizFeedbackTimeout = null;
+
+    // 리포트 & 리플레이 전용 상태
+    let gameReportData = null;
+    let reportViewMode = 'player'; // 'player' | 'optimal'
+    let replayHistory = null;
+    let replayCurrentStep = 0;
+    let replayInterval = null;
+    let replayIsPlaying = false;
+
+    const MODE_CONFIG = {
+      1: { name: '스마트시티 챌린지', desc: '1인 싱글 기록 도전: 크루스칼 알고리즘과 대결하여 최적 비용을 달성하세요.', icon: '🏙️' },
+      2: { name: '네트워크 듀얼', desc: '2인 1:1 진검승부: 동일한 지도와 제한시간에서 최소 비용과 최단 시간을 겨룹니다.', icon: '⚔️' },
+      3: { name: '스마트시티 리그', desc: '3인 리그전: 3명의 전략가가 동일한 인프라 조건에서 최적의 해를 찾아 대결합니다.', icon: '🏆' },
+      4: { name: 'LINK CITY 챔피언십', desc: '4인 마스터 챔피언십: 4명의 플레이어가 참가하는 종합 랭킹 토너먼트!', icon: '👑' }
+    };
+
+    const screens = {
+      title: document.getElementById('screen-title'),
+      play: document.getElementById('screen-play'),
+      intermission: document.getElementById('screen-intermission'),
+      result: document.getElementById('screen-result')
+    };
+
+    function showScreen(name) {
+      Object.keys(screens).forEach(k => {
+        if (screens[k]) screens[k].classList.remove('active');
+      });
+      if (screens[name]) screens[name].classList.add('active');
+    }
+
+    // 메인 대메뉴 모드 스위치: [자유 건설 모드] vs [크루스칼 학습 모드]
+    function switchMainPlayMode(mode) {
+      mainPlayMode = mode;
+      document.getElementById('btnModeFree').classList.toggle('active', mode === 'FREE');
+      document.getElementById('btnModeLearn').classList.toggle('active', mode === 'LEARN');
+
+      const freeBox = document.getElementById('freeModeBox');
+      const learnBox = document.getElementById('learnModeBox');
+      const startBtn = document.getElementById('startBtn');
+
+      if (mode === 'FREE') {
+        freeBox.style.display = 'block';
+        learnBox.style.display = 'none';
+        startBtn.textContent = \`\${MODE_CONFIG[gameMode].name} 시작 🚀\`;
+      } else {
+        freeBox.style.display = 'none';
+        learnBox.style.display = 'block';
+        startBtn.textContent = '크루스칼 단계별 학습 시작 🚀';
+      }
+    }
+
+    // 메인 시작 버튼 클릭 분기
+    function onMainStartBtnClick() {
+      if (mainPlayMode === 'FREE') {
+        startMultiGame();
+      } else {
+        startLearningGame();
+      }
+    }
+
+    // 개념 모달 열기/닫기
+    function openConceptModal() {
+      const modal = document.getElementById('conceptModalBackdrop');
+      if (modal) modal.classList.add('active');
+    }
+    function closeConceptModal() {
+      const modal = document.getElementById('conceptModalBackdrop');
+      if (modal) modal.classList.remove('active');
+    }
+    function handleModalBackdropClick(evt) {
+      if (evt.target.id === 'conceptModalBackdrop') {
+        closeConceptModal();
+      }
+    }
+
+    // 우측 사이드 패널 탭 전환 (도로 카드 vs 검토 로그)
+    function switchRightPanelTab(tab) {
+      rightPanelTab = tab;
+      const btnCards = document.getElementById('tabBtnCards');
+      const btnLog = document.getElementById('tabBtnLog');
+      const viewCards = document.getElementById('viewCardsContainer');
+      const viewLog = document.getElementById('viewLogContainer');
+
+      if (btnCards) btnCards.classList.toggle('active', tab === 'cards');
+      if (btnLog) btnLog.classList.toggle('active', tab === 'log');
+      if (viewCards) viewCards.style.display = tab === 'cards' ? 'flex' : 'none';
+      if (viewLog) viewLog.style.display = tab === 'log' ? 'flex' : 'none';
+    }
+
+    function selectGameMode(mode) {
+      gameMode = mode;
+      for (let i = 1; i <= 4; i++) {
+        const tab = document.getElementById('mode-tab-' + i);
+        if (tab) tab.classList.toggle('active', i === mode);
+      }
+      const descEl = document.getElementById('modeDescText');
+      if (descEl) descEl.textContent = MODE_CONFIG[mode].desc;
+
+      const startBtn = document.getElementById('startBtn');
+      if (startBtn) startBtn.textContent = \`\${MODE_CONFIG[mode].name} 시작 🚀\`;
+
+      renderPlayerInputs();
+    }
+
+    function renderPlayerInputs() {
+      const container = document.getElementById('playerInputsGrid');
+      if (!container) return;
+      container.innerHTML = '';
+
+      for (let i = 0; i < gameMode; i++) {
+        const card = document.createElement('div');
+        card.className = 'player-input-card';
+        card.innerHTML = \`
+          <span class="player-p-badge p\${i + 1}">P\${i + 1}</span>
+          <input type="text" class="player-name-input" id="player-input-\${i}" 
+            value="\${playerNames[i] || '플레이어 ' + (i + 1)}" 
+            placeholder="플레이어 \${i + 1} 이름" 
+            maxlength="10"
+            onchange="updatePlayerName(\${i}, this.value)" />
+        \`;
+        container.appendChild(card);
+      }
+    }
+
+    function updatePlayerName(idx, val) {
+      playerNames[idx] = val.trim() || \`플레이어 \${idx + 1}\`;
+    }
+
+    function selectDifficulty(diff) {
+      currentDifficulty = diff;
+      document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'));
+      document.getElementById('diff-card-' + diff).classList.add('selected');
+    }
+
+    // 1~4인 게임 시작 진입점
+    function startMultiGame() {
+      // 닉네임 입력 동기화
+      for (let i = 0; i < gameMode; i++) {
+        const input = document.getElementById('player-input-' + i);
+        if (input && input.value.trim()) {
+          playerNames[i] = input.value.trim();
+        }
+      }
+
+      currentGraph = GRAPHS[currentDifficulty];
+      optimalMst = kruskal(currentGraph);
+      currentPlayerIndex = 0;
+      playerRecords = [];
+
+      startPlayerTurn();
+    }
+
+    // 개별 플레이어 턴 시작 (동일한 지도, 동일한 제한시간, 독립 기록)
+    function startPlayerTurn() {
+      selectedEdgeIds = [];
+      history = [];
+      timerSeconds = currentGraph.timeLimit;
+
+      // 무작위 셔플로 도로 카드 배열
+      cardSortMode = 'random';
+      shuffleCurrentEdges();
+      updateSortButtonState();
+
+      document.getElementById('hudCityName').textContent = currentGraph.name;
+
+      // 턴 안내 HUD 뱃지
+      const playerBadge = document.getElementById('hudPlayerBadge');
+      const playerText = document.getElementById('hudPlayerText');
+      if (gameMode > 1) {
+        playerBadge.style.display = 'inline-flex';
+        playerText.textContent = \`P\${currentPlayerIndex + 1} [\${playerNames[currentPlayerIndex]}]님의 차례 (\${currentPlayerIndex + 1} / \${gameMode})\`;
+      } else {
+        playerBadge.style.display = 'none';
+      }
+
+      document.getElementById('mapWrapper').classList.remove('city-powered-on');
+      hideAlert();
+      updateHud();
+      renderMap();
+
+      startTimer();
+      showScreen('play');
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        timerSeconds--;
+        updateTimerDisplay();
+        if (timerSeconds <= 0) {
+          clearInterval(timerInterval);
+          onTimeout();
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(timerSeconds / 60);
+      const secs = timerSeconds % 60;
+      document.getElementById('hudTimer').textContent =
+        \`\${String(mins).padStart(2, '0')}:\${String(secs).padStart(2, '0')}\`;
+    }
+
+    function showAlert(text) {
+      const banner = document.getElementById('alertBanner');
+      document.getElementById('alertText').textContent = text;
+      banner.className = 'cycle';
+      banner.style.display = 'flex';
+      setTimeout(() => { banner.style.display = 'none'; }, 3500);
+    }
+
+    function hideAlert() {
+      document.getElementById('alertBanner').style.display = 'none';
+    }
+
+    function updateHud() {
+      const targetCount = currentGraph.nodes.length - 1;
+      const currentCount = selectedEdgeIds.length;
+      let totalCost = 0;
+      for (const id of selectedEdgeIds) {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) totalCost += e.weight;
+      }
+
+      document.getElementById('hudCost').textContent = totalCost + '억';
+      document.getElementById('hudEdges').textContent = \`\${currentCount} / \${targetCount}\`;
+    }
+
+    // ==========================================
+    // 크루스칼 알고리즘 단계별 학습 모드 핵심 제어기
+    // ==========================================
+    function startLearningGame() {
+      mainPlayMode = 'LEARN';
+      currentGraph = GRAPHS[currentDifficulty];
+      optimalMst = kruskal(currentGraph);
+      learnReviewedEdgeIds = [];
+      learnAcceptedEdgeIds = [];
+      learnSkippedEdgeIds = [];
+      learnSteps = [];
+      currentInspectingEdge = null;
+      learnStepNumber = 1;
+      selectedEdgeIds = [];
+      history = [];
+
+      // 학습 모드 전용 타이머 (학습 시간 측정용 카운트업)
+      timerSeconds = 0;
+      clearInterval(timerInterval);
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        timerSeconds++;
+        updateTimerDisplay();
+      }, 1000);
+
+      document.getElementById('hudCityName').textContent = currentGraph.name;
+
+      // HUD 뱃지 세팅
+      const playerBadge = document.getElementById('hudPlayerBadge');
+      const playerText = document.getElementById('hudPlayerText');
+      playerBadge.style.display = 'inline-flex';
+      playerText.textContent = '📚 크루스칼 탐욕 알고리즘 학습 트레이닝';
+
+      // 조작 버튼 가시성 (학습 모드에서는 전용 인터랙션 사용)
+      document.getElementById('hudUndoBtn').style.display = 'none';
+      document.getElementById('hudResetBtn').style.display = 'none';
+
+      // 대화형 퀴즈 바 노출
+      document.getElementById('learnInteractionBar').style.display = 'flex';
+      document.getElementById('learnQuizBox').style.display = 'none';
+      document.getElementById('quizFeedbackBox').style.display = 'none';
+
+      // 우측 탭 기본을 'cards'로
+      switchRightPanelTab('cards');
+
+      updateLearnHudAndGuide();
+      renderMap();
+      renderCards();
+      renderReviewLogTable();
+
+      showScreen('play');
+    }
+
+    // 학습 모드 가이드 및 HUD 갱신
+    function updateLearnHudAndGuide() {
+      const nodeIds = currentGraph.nodes.map(n => n.id);
+      const targetCount = nodeIds.length - 1;
+      const unreviewed = currentGraph.edges.filter(e => !learnReviewedEdgeIds.includes(e.id));
+      const minCandidates = getAvailableMinimumEdges(unreviewed);
+
+      // HUD 표시
+      let currentCost = 0;
+      for (const id of learnAcceptedEdgeIds) {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) currentCost += e.weight;
+      }
+      document.getElementById('hudCost').textContent = currentCost + '억';
+      document.getElementById('hudEdges').textContent = \`\${learnAcceptedEdgeIds.length} / \${targetCount}\`;
+
+      // 대화형 바 진행 뱃지
+      document.getElementById('learnStepBadge').textContent = \`STEP \${learnStepNumber} • 탐욕적 후보 검토\`;
+      document.getElementById('learnProgressBadge').textContent = 
+        \`채택 \${learnAcceptedEdgeIds.length} / 목표 \${targetCount} (미검토: \${unreviewed.length}개)\`;
+
+      // 안내 문구
+      if (minCandidates.length > 0) {
+        const minW = minCandidates[0].weight;
+        const candidateNames = minCandidates.map(c => \`[\${c.source}-\${c.target}]\`).join(', ');
+        document.getElementById('learnGuideMsg').innerHTML = 
+          \`💡 <strong>가장 비용이 낮은 도로(\${minW}억)</strong> 중 하나를 선택하세요: <span style="color:#0284C7; font-weight:800;">\${candidateNames}</span>\`;
+      } else {
+        document.getElementById('learnGuideMsg').textContent = '모든 후보 도로 검토가 완료되었습니다.';
+      }
+
+      document.getElementById('learnQuizBox').style.display = 'none';
+    }
+
+    // 학습 모드에서 도로(간선 또는 카드) 클릭 시
+    function onLearnEdgeClick(edgeId) {
+      if (currentInspectingEdge) return; // 퀴즈 응답 대기 중이면 중복 클릭 방지
+      if (learnReviewedEdgeIds.includes(edgeId)) {
+        showAlert('ℹ️ 이미 검토를 완료한 도로입니다.');
+        return;
+      }
+
+      const edge = currentGraph.edges.find(e => e.id === edgeId);
+      if (!edge) return;
+
+      const unreviewed = currentGraph.edges.filter(e => !learnReviewedEdgeIds.includes(e.id));
+      const minCandidates = getAvailableMinimumEdges(unreviewed);
+
+      // [핵심 요구사항] 동일한 가중치를 가진 간선들은 어느 순서로 검토해도 인정!
+      const isLegalGreedyChoice = minCandidates.some(c => c.id === edgeId);
+
+      if (!isLegalGreedyChoice) {
+        const minW = minCandidates[0] ? minCandidates[0].weight : 0;
+        showAlert(\`⚠️ 크루스칼 알고리즘은 탐욕(Greedy) 방식으로 가장 비용이 저렴한 도로(\${minW}억)부터 순서대로 검토해야 합니다!\`);
+        flashEdgeCandidateTargets(minCandidates);
+        return;
+      }
+
+      // 올바른 최소 가중치 도로 선택! 퀴즈 활성화
+      currentInspectingEdge = edge;
+      hideAlert();
+
+      document.getElementById('learnQuizBox').style.display = 'flex';
+      document.getElementById('quizQuestionText').innerHTML = 
+        \`도로 <strong>[\${edge.source} - \${edge.target}] (\${edge.weight}억)</strong> 건설 시 <strong>순환선(사이클)</strong>이 발생할까요?\`;
+      document.getElementById('quizFeedbackBox').style.display = 'none';
+
+      renderMap();
+      renderCards();
+    }
+
+    function flashEdgeCandidateTargets(candidates) {
+      candidates.forEach(c => {
+        const line = document.getElementById('line-' + c.id);
+        if (line) {
+          line.classList.add('cycle-flash');
+          setTimeout(() => line.classList.remove('cycle-flash'), 600);
+        }
+      });
+    }
+
+    // 사이클 판단 퀴즈 제출
+    function submitCycleQuiz(userSaysSkip) {
+      if (!currentInspectingEdge) return;
+
+      const edge = currentInspectingEdge;
+      const nodeIds = currentGraph.nodes.map(n => n.id);
+      const testEdges = [
+        ...learnAcceptedEdgeIds.map(id => currentGraph.edges.find(e => e.id === id)),
+        edge
+      ];
+
+      // 실제 사이클 발생 여부 판정
+      const actualHasCycle = hasCycle(testEdges, nodeIds);
+      // 정답 여부: userSaysSkip(건너뛰기/사이클 있음) === actualHasCycle
+      const isCorrect = (userSaysSkip === actualHasCycle);
+
+      const feedbackBox = document.getElementById('quizFeedbackBox');
+      const feedbackIcon = document.getElementById('quizFeedbackIcon');
+      const feedbackText = document.getElementById('quizFeedbackText');
+
+      feedbackBox.className = 'quiz-feedback-box ' + (isCorrect ? 'correct' : 'wrong');
+      feedbackIcon.textContent = isCorrect ? '🎉' : '💡';
+
+      if (isCorrect) {
+        feedbackText.innerHTML = actualHasCycle
+          ? \`<strong>정답입니다!</strong> [\${edge.source}]와 [\${edge.target}]는 이미 다른 경로로 연결되어 있어 사이클(순환선)이 형성되므로 건너뜁니다(제외).\`
+          : \`<strong>정답입니다!</strong> [\${edge.source}]와 [\${edge.target}]는 서로 다른 독립 시설 그룹이므로 안전하게 채택합니다(사이클 없음)!\`;
+      } else {
+        feedbackText.innerHTML = actualHasCycle
+          ? \`<strong>오답입니다:</strong> [\${edge.source}]와 [\${edge.target}]는 이미 간접적으로 연결되어 있어 사이클이 생깁니다. 도로를 건너뛰어야 합니다!\`
+          : \`<strong>오답입니다:</strong> [\${edge.source}]와 [\${edge.target}]는 아직 연결되지 않았으므로 꼭 채택해야 합니다!\`;
+      }
+      feedbackBox.style.display = 'flex';
+
+      // 알고리즘 반영 (학습 결과 기록)
+      const decision = actualHasCycle ? 'SKIPPED' : 'ACCEPTED';
+      const reason = actualHasCycle
+        ? \`[\${edge.source}]와 [\${edge.target}]는 이미 다른 도로망으로 연결되어 있어 순환선(사이클) 발생 → 제외\`
+        : \`[\${edge.source}]와 [\${edge.target}] 독립 시설 그룹을 연결하여 병합 (사이클 없음) → 채택\`;
+
+      if (actualHasCycle) {
+        learnSkippedEdgeIds.push(edge.id);
+      } else {
+        learnAcceptedEdgeIds.push(edge.id);
+      }
+      learnReviewedEdgeIds.push(edge.id);
+
+      let currentCost = 0;
+      learnAcceptedEdgeIds.forEach(id => {
+        const e = currentGraph.edges.find(item => item.id === id);
+        if (e) currentCost += e.weight;
+      });
+
+      learnSteps.push({
+        stepNumber: learnStepNumber,
+        edge: edge,
+        decision: decision,
+        reason: reason,
+        createsCycle: actualHasCycle,
+        currentTotalCost: currentCost,
+        userWasCorrect: isCorrect
+      });
+
+      renderReviewLogTable();
+      renderMap();
+      renderCards();
+
+      const targetCount = currentGraph.nodes.length - 1;
+      const isTargetReached = (learnAcceptedEdgeIds.length === targetCount);
+
+      // 퀴즈 완료 후 다음 상태로 진행
+      clearTimeout(quizFeedbackTimeout);
+      quizFeedbackTimeout = setTimeout(() => {
+        currentInspectingEdge = null;
+        learnStepNumber++;
+
+        if (isTargetReached) {
+          onLearnSuccess();
+        } else {
+          updateLearnHudAndGuide();
+          renderMap();
+          renderCards();
+        }
+      }, 1400);
+    }
+
+    // 학습 모드 완료 시 (n - 1개 채택 달성)
+    function onLearnSuccess() {
+      clearInterval(timerInterval);
+      document.getElementById('mapWrapper').classList.add('city-powered-on');
+
+      setTimeout(() => {
+        let totalCost = 0;
+        learnAcceptedEdgeIds.forEach(id => {
+          const e = currentGraph.edges.find(item => item.id === id);
+          if (e) totalCost += e.weight;
+        });
+
+        // 1인 기록으로 저장하여 공통 리포트 생성
+        playerRecords = [{
+          id: 1,
+          name: '크루스칼 학습 도전자',
+          isCompleted: true,
+          cost: totalCost,
+          timeUsedSeconds: timerSeconds,
+          connectedNodesCount: currentGraph.nodes.length,
+          selectedEdgeIds: [...learnAcceptedEdgeIds],
+          isPerfect: true
+        }];
+
+        showFinalResults();
+      }, 1000);
+    }
+
+    // 검토 로그 테이블 렌더링
+    function renderReviewLogTable() {
+      const tbody = document.getElementById('reviewLogTableBody');
+      const tabCount = document.getElementById('tabLogCount');
+      if (!tbody) return;
+
+      if (tabCount) tabCount.textContent = learnSteps.length;
+
+      if (learnSteps.length === 0) {
+        tbody.innerHTML = \`
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+              아직 검토된 도로가 없습니다.
+            </td>
+          </tr>
+        \`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      learnSteps.forEach(s => {
+        const tr = document.createElement('tr');
+        const badge = s.decision === 'ACCEPTED'
+          ? '<span class="log-badge-accept">채택 ✓</span>'
+          : '<span class="log-badge-skip">제외 ✕</span>';
+
+        tr.innerHTML = \`
+          <td style="font-weight: 800; color: #0284C7;">#\${s.stepNumber}</td>
+          <td style="font-weight: 800;">\${s.edge.source}-\${s.edge.target}</td>
+          <td style="color: var(--amber); font-weight: 800;">\${s.edge.weight}억</td>
+          <td>\${badge}</td>
+          <td style="font-size: 0.8rem; color: #475569;">\${s.reason}</td>
+        \`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 자유 모드 및 학습 모드 통합 도로 클릭 핸들러
+    function toggleEdge(edgeId) {
+      if (mainPlayMode === 'LEARN') {
+        return onLearnEdgeClick(edgeId);
+      }
+
+      hideAlert();
+      const nodeIds = currentGraph.nodes.map(n => n.id);
+
+      if (selectedEdgeIds.includes(edgeId)) {
+        history.push([...selectedEdgeIds]);
+        selectedEdgeIds = selectedEdgeIds.filter(id => id !== edgeId);
+        updateHud();
+        renderMap();
+        return;
+      }
+
+      const candidateEdge = currentGraph.edges.find(e => e.id === edgeId);
+      if (!candidateEdge) return;
+
+      const testEdgeList = [
+        ...selectedEdgeIds.map(id => currentGraph.edges.find(e => e.id === id)),
+        candidateEdge
+      ];
+
+      // 사이클 감지
+      if (hasCycle(testEdgeList, nodeIds)) {
+        showAlert('⚠️ 순환선(사이클) 발생 경고! 이미 다른 친환경 도로망으로 연결된 시설입니다.');
+        flashEdgeCycle(edgeId);
+        return;
+      }
+
+      history.push([...selectedEdgeIds]);
+      selectedEdgeIds.push(edgeId);
+      updateHud();
+      renderMap();
+
+      checkGameCompletion();
+    }
+
+    function flashEdgeCycle(edgeId) {
+      const lineEl = document.getElementById('line-' + edgeId);
+      if (lineEl) {
+        lineEl.classList.add('cycle-flash');
+        setTimeout(() => { lineEl.classList.remove('cycle-flash'); }, 800);
+      }
+      const cardEl = document.getElementById('card-' + edgeId);
+      if (cardEl) {
+        cardEl.classList.add('cycle-flash');
+        scrollCardIntoPanel(cardEl);
+        setTimeout(() => { cardEl.classList.remove('cycle-flash'); }, 800);
+      }
+    }
+
+    function checkGameCompletion() {
+      const nodeIds = currentGraph.nodes.map(n => n.id);
+      const targetCount = nodeIds.length - 1;
+
+      if (selectedEdgeIds.length === targetCount) {
+        const currentEdges = selectedEdgeIds.map(id => currentGraph.edges.find(e => e.id === id));
+        if (isConnected(currentEdges, nodeIds)) {
+          clearInterval(timerInterval);
+          // 도시 전체 점등 효과 발동!
+          document.getElementById('mapWrapper').classList.add('city-powered-on');
+          setTimeout(() => {
+            onGameSuccess(currentEdges);
+          }, 900);
+        }
+      }
+    }
+
+    function onGameSuccess(selectedEdges) {
+      const actualCost = selectedEdges.reduce((sum, e) => sum + e.weight, 0);
+      completePlayerTurn(true, actualCost);
+    }
+
+    function onTimeout() {
+      let currentCost = 0;
+      for (const id of selectedEdgeIds) {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) currentCost += e.weight;
+      }
+      completePlayerTurn(false, currentCost);
+    }
+
+    // 턴 종료 처리 및 비밀 보장 은폐
+    function completePlayerTurn(isCompleted, actualCost) {
+      clearInterval(timerInterval);
+
+      // 연결된 정점 수 계산
+      const connectedNodes = new Set();
+      selectedEdgeIds.forEach(id => {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) {
+          connectedNodes.add(e.source);
+          connectedNodes.add(e.target);
+        }
+      });
+
+      const isPerfect = isCompleted && (actualCost === optimalMst.totalCost);
+      const timeUsed = currentGraph.timeLimit - Math.max(0, timerSeconds);
+
+      // 개별 플레이어의 독립 기록 저장
+      playerRecords[currentPlayerIndex] = {
+        id: currentPlayerIndex + 1,
+        name: playerNames[currentPlayerIndex],
+        isCompleted: isCompleted,
+        cost: actualCost,
+        timeUsedSeconds: timeUsed,
+        connectedNodesCount: connectedNodes.size,
+        selectedEdgeIds: [...selectedEdgeIds],
+        isPerfect: isPerfect
+      };
+
+      // 플레이어 전환 시 이전 결과를 숨김 (화면 및 선택 초기화)
+      selectedEdgeIds = [];
+      history = [];
+      renderMap();
+      renderCards();
+
+      if (currentPlayerIndex < gameMode - 1) {
+        // 다음 플레이어가 남아있으면 턴 전환 인터미션 화면 표시
+        showIntermissionScreen();
+      } else {
+        // 모든 플레이어 종료 시 최종 결과 화면 공개
+        showFinalResults();
+      }
+    }
+
+    function showIntermissionScreen() {
+      const prevName = playerNames[currentPlayerIndex];
+      const nextName = playerNames[currentPlayerIndex + 1];
+
+      document.getElementById('interPrevPlayerNotice').textContent = \`[\${prevName}] 님 건설 종료!\`;
+      document.getElementById('interNextPlayerName').textContent = \`P\${currentPlayerIndex + 2} [\${nextName}] 님\`;
+
+      showScreen('intermission');
+    }
+
+    function proceedNextPlayerTurn() {
+      currentPlayerIndex++;
+      startPlayerTurn();
+    }
+
+    // 2~4인용 승패 판정 및 순위 산정 로직
+    function rankAllPlayers(players) {
+      const sorted = [...players].sort((a, b) => {
+        // 1. 완성 여부 (완성자 > 미완성자)
+        if (a.isCompleted !== b.isCompleted) {
+          return a.isCompleted ? -1 : 1;
+        }
+        // 2. 완성자 간 순위
+        if (a.isCompleted && b.isCompleted) {
+          // 2-1. 건설비 낮은 순
+          if (a.cost !== b.cost) return a.cost - b.cost;
+          // 2-2. 소요 시간 빠른 순 (적게 걸린 순)
+          if (a.timeUsedSeconds !== b.timeUsedSeconds) return a.timeUsedSeconds - b.timeUsedSeconds;
+          return 0; // 공동 순위
+        }
+        // 3. 미완성자 간 순위 (연결 시설 수 > 투입 비용)
+        if (a.connectedNodesCount !== b.connectedNodesCount) {
+          return b.connectedNodesCount - a.connectedNodesCount;
+        }
+        if (a.cost !== b.cost) return a.cost - b.cost;
+        if (a.timeUsedSeconds !== b.timeUsedSeconds) return a.timeUsedSeconds - b.timeUsedSeconds;
+        return 0;
+      });
+
+      // 공동 순위 부여 (1위, 1위, 3위 형태)
+      const ranked = [];
+      for (let i = 0; i < sorted.length; i++) {
+        const cur = sorted[i];
+        let rank = i + 1;
+        let isTie = false;
+        if (i > 0) {
+          const prev = sorted[i - 1];
+          const isSame =
+            cur.isCompleted === prev.isCompleted &&
+            cur.cost === prev.cost &&
+            cur.timeUsedSeconds === prev.timeUsedSeconds &&
+            cur.connectedNodesCount === prev.connectedNodesCount;
+          if (isSame) {
+            rank = ranked[i - 1].rank;
+            isTie = true;
+            ranked[i - 1].isTie = true;
+          }
+        }
+        ranked.push({ ...cur, rank, isTie });
+      }
+      return ranked;
+    }
+
+    function showFinalResults() {
+      if (gameMode === 1) {
+        // 1인용 결과 화면
+        document.getElementById('singleResultBox').style.display = 'block';
+        document.getElementById('multiResultBox').style.display = 'none';
+
+        const rec = playerRecords[0];
+        const resBadge = document.getElementById('resBadge');
+        const resTitle = document.getElementById('resTitle');
+        const resSubtitle = document.getElementById('resSubtitle');
+
+        if (rec.isPerfect) {
+          resBadge.className = 'result-badge perfect';
+          resBadge.textContent = '🏆 PERFECT CITY';
+          resTitle.textContent = '완벽한 스마트시티 건설!';
+          resSubtitle.innerHTML = \`축하합니다! <strong>수학적 최적 비용(\${optimalMst.totalCost}억 원)</strong>으로 모든 친환경 인프라를 완벽히 개통했습니다!\`;
+        } else if (rec.isCompleted) {
+          resBadge.className = 'result-badge success';
+          resBadge.textContent = '도시 연결 완료';
+          resTitle.textContent = '도시 인프라 연결 성공!';
+          resSubtitle.innerHTML = \`모든 시설을 연결했으나 최적 비용(\${optimalMst.totalCost}억 원)보다 \${rec.cost - optimalMst.totalCost}억 원 더 소요되었습니다.<br/>더 스마트한 도로 조합에 다시 도전해 보세요!\`;
+        } else {
+          resBadge.className = 'result-badge timeout';
+          resBadge.textContent = '시간 초과';
+          resTitle.textContent = '제한시간 초과 (미완성 도시)';
+          resSubtitle.textContent = '제한시간 내에 모든 도시 시설을 연결하지 못했습니다. 다시 도전해 보세요!';
+        }
+
+        document.getElementById('resMyCost').textContent = rec.cost + '억';
+        document.getElementById('resOptimalCost').textContent = optimalMst.totalCost + '억';
+      } else {
+        // 2~4인용 멀티플레이어 리더보드 화면
+        document.getElementById('singleResultBox').style.display = 'none';
+        document.getElementById('multiResultBox').style.display = 'block';
+
+        const ranked = rankAllPlayers(playerRecords);
+        const champion = ranked[0];
+
+        document.getElementById('multiLeaderboardBadge').textContent = \`\${MODE_CONFIG[gameMode].icon} \${MODE_CONFIG[gameMode].name}\`;
+        document.getElementById('championName').textContent = champion.name;
+        
+        const champTimeM = Math.floor(champion.timeUsedSeconds / 60);
+        const champTimeS = champion.timeUsedSeconds % 60;
+        const timeStr = \`\${champTimeM}분 \${champTimeS}초\`;
+        document.getElementById('championStat').textContent = 
+          champion.isCompleted 
+            ? \`총 건설비: \${champion.cost}억 원 \${champion.isPerfect ? '(PERFECT CITY ★)' : ''} • 소요 시간: \${timeStr}\`
+            : \`미완성 (연결 시설: \${champion.connectedNodesCount}개) • 투입 비용: \${champion.cost}억 원\`;
+
+        // 랭킹 리스트 동적 렌더링
+        const listEl = document.getElementById('rankingsList');
+        listEl.innerHTML = '';
+
+        ranked.forEach(p => {
+          const row = document.createElement('div');
+          row.className = \`rank-row-card rank-\${p.rank} \${!p.isCompleted ? 'uncompleted' : ''}\`;
+
+          const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : '🎖️';
+          const tM = Math.floor(p.timeUsedSeconds / 60);
+          const tS = p.timeUsedSeconds % 60;
+
+          let statusBadge = '';
+          if (p.isPerfect) {
+            statusBadge = '<span class="rank-status-pill perfect">PERFECT CITY 🏆</span>';
+          } else if (p.isCompleted) {
+            statusBadge = '<span class="rank-status-pill done">완주 성공 ✓</span>';
+          } else {
+            statusBadge = '<span class="rank-status-pill timeout">시간 초과 (미완성)</span>';
+          }
+
+          row.innerHTML = \`
+            <div class="rank-badge-box">
+              <span class="rank-num-badge r\${Math.min(4, p.rank)}">\${p.rank}위</span>
+              <span style="font-size: 1.4rem;">\${medal}</span>
+              \${p.isTie ? '<span class="tie-tag">공동</span>' : ''}
+            </div>
+
+            <div class="rank-player-info">
+              <div class="rank-player-name">\${p.name}</div>
+              <div class="rank-player-sub">P\${p.id} • 연결 시설: \${p.connectedNodesCount}개 / \${currentGraph.nodes.length}개</div>
+            </div>
+
+            <div class="rank-stats-group">
+              <div class="rank-stat-col">
+                <span class="label">총 건설비</span>
+                <span class="val" style="color: var(--amber);">\${p.cost}억</span>
+              </div>
+              <div class="rank-stat-col">
+                <span class="label">소요 시간</span>
+                <span class="val" style="color: #0284C7;">\${tM}분 \${tS}초</span>
+              </div>
+              <div>\${statusBadge}</div>
+            </div>
+          \`;
+          listEl.appendChild(row);
+        });
+      }
+
+      showScreen('result');
+      renderGameReport();
+      initBonusScienceQuiz(); // 게임 종료 후 선택형 과학 퀴즈 1문제 출제 (기본 게임 점수 영향 0%)
+    }
+
+    // ================= 4. 공통 결과 리포트 및 크루스칼 단계별 재생기 로직 =================
+    function renderGameReport() {
+      if (!currentGraph) return;
+      const nodeIds = currentGraph.nodes.map(n => n.id);
+      replayHistory = kruskalWithHistory(currentGraph);
+
+      // 플레이어 기록 추출 (싱글/학습은 playerRecords[0], 멀티는 1위)
+      let playerRec = playerRecords[0];
+      if (gameMode > 1 && playerRecords.length > 0) {
+        const ranked = rankAllPlayers(playerRecords);
+        playerRec = ranked[0] || playerRecords[0];
+      }
+
+      if (!playerRec) {
+        playerRec = {
+          cost: 0,
+          selectedEdgeIds: [],
+          isCompleted: false,
+          name: '도전자'
+        };
+      }
+
+      const myCost = playerRec.cost;
+      const optCost = optimalMst ? optimalMst.totalCost : 0;
+      const costDiff = myCost - optCost;
+
+      // [핵심 원칙] 복수 최소 신장 트리(Multiple MSTs) 완벽 인정 수학적 판정
+      // (1) 간선 수 n-1개, (2) 전체 연결, (3) 사이클 없음, (4) 총 가중치 합이 최적 비용과 일치
+      const playerEdges = (playerRec.selectedEdgeIds || [])
+        .map(id => currentGraph.edges.find(e => e.id === id))
+        .filter(Boolean);
+      const isConnectedAll = isConnected(playerEdges, nodeIds);
+      const hasCycleCheck = hasCycle(playerEdges, nodeIds);
+      const isTargetCount = playerEdges.length === (nodeIds.length - 1);
+      const isMultipleMstValid = playerRec.isCompleted && (costDiff === 0) && isConnectedAll && !hasCycleCheck && isTargetCount;
+
+      document.getElementById('repMyCost').textContent = myCost + '억';
+      document.getElementById('repOptimalCost').textContent = optCost + '억';
+
+      const repDiffEl = document.getElementById('repCostDiff');
+      const repBadgeEl = document.getElementById('repVerdictBadge');
+
+      if (isMultipleMstValid) {
+        repDiffEl.textContent = '0억 (동일)';
+        repDiffEl.style.color = '#059669';
+        repBadgeEl.innerHTML = '<span class="diff-badge-highlight perfect">🏆 최적 MST 달성 (100% 최적해)</span>';
+      } else if (playerRec.isCompleted) {
+        repDiffEl.textContent = \`+\${costDiff}억\`;
+        repDiffEl.style.color = '#D97706';
+        repBadgeEl.innerHTML = \`<span class="diff-badge-highlight gap">⚠️ +\${costDiff}억 차이 (개선 여지 있음)</span>\`;
+      } else {
+        repDiffEl.textContent = '미완성';
+        repDiffEl.style.color = '#DC2626';
+        repBadgeEl.innerHTML = '<span class="diff-badge-highlight gap" style="background:#FEE2E2; color:#991B1B; border-color:#FCA5A5;">⏱️ 미완성 (시간 초과)</span>';
+      }
+
+      // 리플레이 슬라이더 초기화
+      const maxSteps = replayHistory.steps.length;
+      const slider = document.getElementById('replaySlider');
+      if (slider) {
+        slider.min = 0;
+        slider.max = maxSteps;
+        slider.value = 0;
+      }
+      const maxLabel = document.getElementById('replayMaxStepLabel');
+      if (maxLabel) {
+        maxLabel.textContent = \`END (Step \${maxSteps})\`;
+      }
+
+      // 기본 뷰: 나의 연결망 보기
+      reportViewMode = 'player';
+      document.getElementById('btnViewMine').classList.add('active');
+      document.getElementById('btnViewOptimal').classList.remove('active');
+      pauseReplay();
+      setReplayStep(0, false);
+      renderReportMap();
+    }
+
+    // 연결망 시각화 토글 ([나의 연결망] ↔ [크루스칼 최적 연결망])
+    function toggleReportView(viewMode) {
+      pauseReplay();
+      reportViewMode = viewMode;
+      document.getElementById('btnViewMine').classList.toggle('active', viewMode === 'player');
+      document.getElementById('btnViewOptimal').classList.toggle('active', viewMode === 'optimal');
+
+      const titleEl = document.getElementById('repMapHeaderTitle');
+      const subEl = document.getElementById('repMapHeaderSub');
+      const playerRec = playerRecords[0] || { cost: 0, selectedEdgeIds: [] };
+
+      if (viewMode === 'player') {
+        if (titleEl) titleEl.textContent = '👷 [나의 연결망] 건설 현황';
+        if (subEl) subEl.textContent = \`선택한 도로: \${(playerRec.selectedEdgeIds || []).length}개 • 총 비용: \${playerRec.cost}억\`;
+      } else {
+        if (titleEl) titleEl.textContent = '🤖 [크루스칼 최적해] 최소 신장 트리(MST)';
+        if (subEl) subEl.textContent = \`최적 도로: \${optimalMst.edges.length}개 • 최소 비용: \${optimalMst.totalCost}억\`;
+      }
+
+      renderReportMap();
+    }
+
+    // 크루스칼 알고리즘 단계별 탐색
+    function setReplayStep(idx, shouldPause = true) {
+      if (!replayHistory || !replayHistory.steps) return;
+      if (shouldPause) pauseReplay();
+
+      const totalSteps = replayHistory.steps.length;
+      replayCurrentStep = Math.max(0, Math.min(idx, totalSteps));
+
+      const slider = document.getElementById('replaySlider');
+      if (slider) slider.value = replayCurrentStep;
+
+      const counter = document.getElementById('replayStepCounter');
+      if (counter) counter.textContent = \`Step \${replayCurrentStep} / \${totalSteps}\`;
+
+      const infoBox = document.getElementById('replayInfoBox');
+      const titleEl = document.getElementById('repMapHeaderTitle');
+      const subEl = document.getElementById('repMapHeaderSub');
+
+      if (replayCurrentStep === 0) {
+        if (infoBox) {
+          infoBox.innerHTML = \`🏁 <strong>크루스칼 알고리즘 시작 준비:</strong> 모든 도로를 가중치(비용) 오름차순으로 정렬했습니다. [▶ 재생] 또는 [다음 단계]를 눌러 탐욕적 선택 과정을 확인하세요.\`;
+        }
+        if (subEl) subEl.textContent = \`초기 상태 (0개 도로 채택)\`;
+      } else {
+        const stepObj = replayHistory.steps[replayCurrentStep - 1];
+        const isAccept = (stepObj.decision === 'ACCEPTED');
+        const badge = isAccept
+          ? '<span class="log-badge-accept">채택 ✓</span>'
+          : '<span class="log-badge-skip">사이클 제외 ✕</span>';
+
+        if (infoBox) {
+          infoBox.innerHTML = \`
+            <div style="margin-bottom: 4px;">
+              <strong>Step \${stepObj.stepNumber}: 도로 [\${stepObj.edge.source} - \${stepObj.edge.target}] (\${stepObj.edge.weight}억)</strong> — \${badge}
+            </div>
+            <div style="color: #475569; font-size: 0.88rem; margin-bottom: 4px;">
+              \${stepObj.reason}
+            </div>
+            <div style="font-size: 0.82rem; font-weight: 700; color: #0284C7;">
+              현재 누적 MST 비용: \${stepObj.currentTotalCost}억 | 채택 도로: \${stepObj.currentMstEdges.length} / \${replayHistory.targetEdgeCount}개
+              \${stepObj.targetReached ? ' <strong style="color: #059669;">🎉 모든 시설 연결 완료 (MST 완성)!</strong>' : ''}
+            </div>
+          \`;
+        }
+        if (subEl) {
+          subEl.textContent = \`채택: \${stepObj.currentMstEdges.length}개 / \${replayHistory.targetEdgeCount}개 • 누적: \${stepObj.currentTotalCost}억\`;
+        }
+      }
+
+      if (shouldPause || replayIsPlaying) {
+        reportViewMode = 'replay';
+        document.getElementById('btnViewMine').classList.remove('active');
+        document.getElementById('btnViewOptimal').classList.remove('active');
+        if (titleEl) titleEl.textContent = \`▶️ [알고리즘 재생] Step \${replayCurrentStep} / \${totalSteps}\`;
+      }
+
+      renderReportMap();
+    }
+
+    function onReplaySliderInput(val) {
+      setReplayStep(parseInt(val, 10), true);
+    }
+
+    function toggleReplayPlay() {
+      if (replayIsPlaying) {
+        pauseReplay();
+      } else {
+        playReplay();
+      }
+    }
+
+    function playReplay() {
+      if (!replayHistory || !replayHistory.steps) return;
+      if (replayCurrentStep >= replayHistory.steps.length) {
+        replayCurrentStep = 0;
+      }
+      replayIsPlaying = true;
+      const btn = document.getElementById('btnReplayPlayToggle');
+      if (btn) btn.innerHTML = '⏸ 일시정지';
+
+      reportViewMode = 'replay';
+      document.getElementById('btnViewMine').classList.remove('active');
+      document.getElementById('btnViewOptimal').classList.remove('active');
+
+      clearInterval(replayInterval);
+      replayInterval = setInterval(() => {
+        if (replayCurrentStep < replayHistory.steps.length) {
+          setReplayStep(replayCurrentStep + 1, false);
+        } else {
+          pauseReplay();
+        }
+      }, 1400);
+    }
+
+    function pauseReplay() {
+      replayIsPlaying = false;
+      const btn = document.getElementById('btnReplayPlayToggle');
+      if (btn) btn.innerHTML = '▶ 재생';
+      clearInterval(replayInterval);
+    }
+
+    function seekReplayFirst() { setReplayStep(0, true); }
+    function seekReplayPrev() { setReplayStep(replayCurrentStep - 1, true); }
+    function seekReplayNext() { setReplayStep(replayCurrentStep + 1, true); }
+    function seekReplayLast() {
+      if (replayHistory && replayHistory.steps) {
+        setReplayStep(replayHistory.steps.length, true);
+      }
+    }
+
+    // 리포트 전용 지도 렌더러 (독립 SVG)
+    function renderReportMap() {
+      if (!currentGraph) return;
+      const nodeMap = new Map();
+      currentGraph.nodes.forEach(n => nodeMap.set(n.id, n));
+
+      const repEdgesLayer = document.getElementById('repEdgesLayer');
+      const repWeightsLayer = document.getElementById('repWeightsLayer');
+      const repNodesLayer = document.getElementById('repNodesLayer');
+      if (!repEdgesLayer || !repWeightsLayer || !repNodesLayer) return;
+
+      repEdgesLayer.innerHTML = '';
+      repWeightsLayer.innerHTML = '';
+      repNodesLayer.innerHTML = '';
+
+      let playerRec = playerRecords[0] || { selectedEdgeIds: [] };
+      if (gameMode > 1 && playerRecords.length > 0) {
+        const ranked = rankAllPlayers(playerRecords);
+        playerRec = ranked[0] || playerRecords[0];
+      }
+
+      let builtEdgeIds = new Set();
+      let inspectingEdgeId = null;
+      let inspectingDecision = null;
+      let skippedEdgeIds = new Set();
+
+      if (reportViewMode === 'player') {
+        builtEdgeIds = new Set(playerRec.selectedEdgeIds || []);
+      } else if (reportViewMode === 'optimal') {
+        (optimalMst ? optimalMst.edges : []).forEach(e => builtEdgeIds.add(e.id));
+      } else if (reportViewMode === 'replay') {
+        if (replayHistory && replayCurrentStep > 0) {
+          const curStepObj = replayHistory.steps[replayCurrentStep - 1];
+          curStepObj.currentMstEdges.forEach(e => builtEdgeIds.add(e.id));
+          inspectingEdgeId = curStepObj.edge.id;
+          inspectingDecision = curStepObj.decision;
+
+          const stepsUpToNow = replayHistory.steps.slice(0, replayCurrentStep);
+          stepsUpToNow.forEach(s => {
+            if (s.decision === 'SKIPPED') skippedEdgeIds.add(s.edge.id);
+          });
+        }
+      }
+
+      // 연결된 노드 집합
+      const connectedNodeIds = new Set();
+      builtEdgeIds.forEach(id => {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) {
+          connectedNodeIds.add(e.source);
+          connectedNodeIds.add(e.target);
+        }
+      });
+
+      // 도로선 렌더링
+      currentGraph.edges.forEach(e => {
+        const n1 = nodeMap.get(e.source);
+        const n2 = nodeMap.get(e.target);
+        if (!n1 || !n2) return;
+
+        const isBuilt = builtEdgeIds.has(e.id);
+        const isCurrentStep = (e.id === inspectingEdgeId);
+        const isSkipped = skippedEdgeIds.has(e.id);
+        const badgePos = getBadgePos(n1, n2, e.badgeT || 0.5, e.badgeOffset || 0);
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', n1.x);
+        line.setAttribute('y1', n1.y);
+        line.setAttribute('x2', n2.x);
+        line.setAttribute('y2', n2.y);
+
+        let strokeColor = '#CBD5E1';
+        let strokeW = '2.5';
+        let strokeDash = '4 4';
+
+        if (isCurrentStep) {
+          if (inspectingDecision === 'ACCEPTED') {
+            strokeColor = '#F59E0B';
+            strokeW = '7';
+            strokeDash = 'none';
+          } else {
+            strokeColor = '#EF4444';
+            strokeW = '5';
+            strokeDash = '6 4';
+          }
+        } else if (isBuilt) {
+          strokeColor = (reportViewMode === 'optimal') ? '#0284C7' : '#059669';
+          strokeW = '5.5';
+          strokeDash = 'none';
+        } else if (isSkipped) {
+          strokeColor = '#EF4444';
+          strokeW = '2.5';
+          strokeDash = '4 4';
+        }
+
+        line.setAttribute('stroke', strokeColor);
+        line.setAttribute('stroke-width', strokeW);
+        line.setAttribute('stroke-linecap', 'round');
+        if (strokeDash !== 'none') {
+          line.setAttribute('stroke-dasharray', strokeDash);
+        }
+        repEdgesLayer.appendChild(line);
+
+        // 가중치 뱃지
+        const gBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gBadge.setAttribute('transform', \`translate(\${badgePos.x}, \${badgePos.y})\`);
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', -22);
+        rect.setAttribute('y', -13);
+        rect.setAttribute('width', 44);
+        rect.setAttribute('height', 26);
+        rect.setAttribute('rx', 13);
+
+        let rectFill = '#FFFFFF';
+        let rectStroke = '#CBD5E1';
+        let textColor = '#64748B';
+
+        if (isCurrentStep) {
+          rectFill = (inspectingDecision === 'ACCEPTED') ? '#F59E0B' : '#EF4444';
+          rectStroke = '#FFFFFF';
+          textColor = '#FFFFFF';
+        } else if (isBuilt) {
+          rectFill = (reportViewMode === 'optimal') ? '#0284C7' : '#059669';
+          rectStroke = '#FFFFFF';
+          textColor = '#FFFFFF';
+        } else if (isSkipped) {
+          rectFill = '#FEE2E2';
+          rectStroke = '#FCA5A5';
+          textColor = '#B91C1C';
+        }
+
+        rect.setAttribute('fill', rectFill);
+        rect.setAttribute('stroke', rectStroke);
+        rect.setAttribute('stroke-width', '1.5');
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', 0);
+        text.setAttribute('y', 4);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('font-size', '11.5');
+        text.setAttribute('font-weight', '800');
+        text.setAttribute('fill', textColor);
+        text.textContent = e.weight + '억';
+
+        gBadge.appendChild(rect);
+        gBadge.appendChild(text);
+        repWeightsLayer.appendChild(gBadge);
+      });
+
+      // 노드 렌더링
+      currentGraph.nodes.forEach(n => {
+        const isConn = connectedNodeIds.has(n.id);
+        const gNode = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gNode.setAttribute('transform', \`translate(\${n.x}, \${n.y})\`);
+
+        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        shadow.setAttribute('cx', 8);
+        shadow.setAttribute('cy', 8);
+        shadow.setAttribute('rx', 28);
+        shadow.setAttribute('ry', 12);
+        shadow.setAttribute('fill', 'rgba(15, 23, 42, 0.16)');
+
+        const baseTop = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        baseTop.setAttribute('points', '0,-15 28,0 0,15 -28,0');
+        baseTop.setAttribute('fill', isConn ? '#DCFCE7' : '#F1F5F9');
+        baseTop.setAttribute('stroke', isConn ? '#10B981' : '#CBD5E1');
+        baseTop.setAttribute('stroke-width', '1.5');
+
+        const iconUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        iconUse.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#icon-' + (n.icon || 'AI_LAB'));
+
+        const idBadgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        idBadgeBg.setAttribute('cx', -24);
+        idBadgeBg.setAttribute('cy', -22);
+        idBadgeBg.setAttribute('r', 10);
+        idBadgeBg.setAttribute('fill', isConn ? '#065F46' : '#0F172A');
+        idBadgeBg.setAttribute('stroke', isConn ? '#34D399' : '#38BDF8');
+        idBadgeBg.setAttribute('stroke-width', '1.5');
+
+        const idBadgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        idBadgeText.setAttribute('x', -24);
+        idBadgeText.setAttribute('y', -18);
+        idBadgeText.setAttribute('text-anchor', 'middle');
+        idBadgeText.setAttribute('fill', '#FFFFFF');
+        idBadgeText.setAttribute('font-size', '10.5');
+        idBadgeText.setAttribute('font-weight', '900');
+        idBadgeText.textContent = n.id;
+
+        const labelWidth = n.name.length * 12 + 16;
+        const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        labelBg.setAttribute('x', -labelWidth / 2);
+        labelBg.setAttribute('y', 22);
+        labelBg.setAttribute('width', labelWidth);
+        labelBg.setAttribute('height', 20);
+        labelBg.setAttribute('rx', 10);
+        labelBg.setAttribute('fill', isConn ? '#065F46' : '#1E293B');
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', 0);
+        label.setAttribute('y', 33);
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('fill', '#FFFFFF');
+        label.setAttribute('font-size', '10.5');
+        label.setAttribute('font-weight', '700');
+        label.textContent = n.name;
+
+        gNode.appendChild(shadow);
+        gNode.appendChild(baseTop);
+        gNode.appendChild(iconUse);
+        gNode.appendChild(idBadgeBg);
+        gNode.appendChild(idBadgeText);
+        gNode.appendChild(labelBg);
+        gNode.appendChild(label);
+        repNodesLayer.appendChild(gNode);
+      });
+    }
+
+    function undoLastEdge() {
+      if (history.length > 0) {
+        selectedEdgeIds = history.pop();
+        hideAlert();
+        updateHud();
+        renderMap();
+      }
+    }
+
+    function resetCurrentGame() {
+      selectedEdgeIds = [];
+      history = [];
+      hideAlert();
+      updateHud();
+      renderMap();
+    }
+
+    function restartSameDifficulty() {
+      pauseReplay();
+      if (mainPlayMode === 'LEARN') {
+        startLearningGame();
+      } else {
+        startMultiGame();
+      }
+    }
+
+    function exitToTitle() {
+      clearInterval(timerInterval);
+      pauseReplay();
+      showScreen('title');
+    }
+
+    // 4. 지능형 가중치 뱃지 위치 계산 (충돌 회피 & 수직 법선 오프셋 & 경계 여백 보장)
+    function getBadgePos(n1, n2, t = 0.5, offset = 0) {
+      const bx = n1.x + (n2.x - n1.x) * t;
+      const by = n1.y + (n2.y - n1.y) * t;
+      let finalX = bx;
+      let finalY = by;
+
+      if (offset) {
+        const dx = n2.x - n1.x;
+        const dy = n2.y - n1.y;
+        const len = Math.hypot(dx, dy) || 1;
+        // 간선 방향의 수직 법선 벡터 (-dy, dx)
+        finalX += (-dy / len) * offset;
+        finalY += (dx / len) * offset;
+      }
+
+      // SVG viewBox(1000 x 860) 경계 여백 35px 확보
+      finalX = Math.max(35, Math.min(965, finalX));
+      finalY = Math.max(35, Math.min(825, finalY));
+
+      return { x: finalX, y: finalY };
+    }
+
+    // 5. SVG 맵 렌더링
+    function renderMap() {
+      const nodeMap = new Map();
+      currentGraph.nodes.forEach(n => nodeMap.set(n.id, n));
+
+      const connectedNodeIds = new Set();
+      const currentActiveEdgeIds = (mainPlayMode === 'LEARN') ? learnAcceptedEdgeIds : selectedEdgeIds;
+      currentActiveEdgeIds.forEach(id => {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) {
+          connectedNodeIds.add(e.source);
+          connectedNodeIds.add(e.target);
+        }
+      });
+
+      const edgesLayer = document.getElementById('edgesLayer');
+      const weightsLayer = document.getElementById('weightsLayer');
+      edgesLayer.innerHTML = '';
+      weightsLayer.innerHTML = '';
+
+      // 미검토 간선 중 최소 가중치 후보군 (학습 모드 탐욕 선택 안내용)
+      let minCandidates = [];
+      if (mainPlayMode === 'LEARN') {
+        const unreviewed = currentGraph.edges.filter(e => !learnReviewedEdgeIds.includes(e.id));
+        minCandidates = getAvailableMinimumEdges(unreviewed);
+      }
+
+      // 5-1. 도로 렌더링
+      currentGraph.edges.forEach(e => {
+        const n1 = nodeMap.get(e.source);
+        const n2 = nodeMap.get(e.target);
+        if (!n1 || !n2) return;
+
+        let isBuilt = false;
+        let isSkipped = false;
+        let isInspecting = false;
+        let isCandidate = false;
+
+        if (mainPlayMode === 'LEARN') {
+          isBuilt = learnAcceptedEdgeIds.includes(e.id);
+          isSkipped = learnSkippedEdgeIds.includes(e.id);
+          isInspecting = currentInspectingEdge && (currentInspectingEdge.id === e.id);
+          isCandidate = minCandidates.some(c => c.id === e.id);
+        } else {
+          isBuilt = selectedEdgeIds.includes(e.id);
+        }
+        const badgePos = getBadgePos(n1, n2, e.badgeT || 0.5, e.badgeOffset || 0);
+
+        const dx = n2.x - n1.x;
+        const dy = n2.y - n1.y;
+        const edgeLen = Math.hypot(dx, dy) || 1;
+        // 노드 중심으로부터 28px 여백을 두어 인접 도로 클릭 영역 간 충돌을 방지
+        const pad = Math.min(28, edgeLen * 0.22);
+        const hx1 = n1.x + (dx / edgeLen) * pad;
+        const hy1 = n1.y + (dy / edgeLen) * pad;
+        const hx2 = n2.x - (dx / edgeLen) * pad;
+        const hy2 = n2.y - (dy / edgeLen) * pad;
+
+        // 시각적 선보다 넓고 안전한(32px) 도로 클릭 히트박스
+        const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        hitbox.setAttribute('x1', hx1);
+        hitbox.setAttribute('y1', hy1);
+        hitbox.setAttribute('x2', hx2);
+        hitbox.setAttribute('y2', hy2);
+        hitbox.setAttribute('class', 'edge-hitbox');
+        hitbox.setAttribute('id', 'hitbox-' + e.id);
+        hitbox.onclick = () => toggleEdge(e.id);
+        // 지도 -> 카드 및 뱃지 양방향 강조 연동
+        hitbox.onmouseenter = () => {
+          highlightCard(e.id, true);
+          const bEl = document.getElementById('badge-' + e.id);
+          if (bEl) bEl.classList.add('highlighted');
+        };
+        hitbox.onmouseleave = () => {
+          highlightCard(e.id, false);
+          const bEl = document.getElementById('badge-' + e.id);
+          if (bEl) bEl.classList.remove('highlighted');
+        };
+
+        // 가시 도로 라인
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', n1.x);
+        line.setAttribute('y1', n1.y);
+        line.setAttribute('x2', n2.x);
+        line.setAttribute('y2', n2.y);
+        let lineClass = 'edge-line ';
+        if (isBuilt) {
+          lineClass += 'built';
+        } else if (isInspecting) {
+          lineClass += 'candidate-pulse';
+        } else if (isCandidate) {
+          lineClass += 'candidate-pulse';
+        } else if (isSkipped) {
+          lineClass += 'edge-skipped';
+        } else {
+          lineClass += 'unbuilt';
+        }
+        line.setAttribute('class', lineClass);
+        line.setAttribute('id', 'line-' + e.id);
+
+        edgesLayer.appendChild(hitbox);
+        edgesLayer.appendChild(line);
+
+        // 고대비 캡슐 건설비 뱃지 (pointer-events: none 적용으로 클릭 방해 0%)
+        const gBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gBadge.setAttribute('class', 'weight-badge');
+        gBadge.setAttribute('id', 'badge-' + e.id);
+        gBadge.setAttribute('transform', \`translate(\${badgePos.x}, \${badgePos.y})\`);
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', -23);
+        rect.setAttribute('y', -14);
+        rect.setAttribute('width', 46);
+        rect.setAttribute('height', 28);
+        rect.setAttribute('rx', 14);
+        let bgClass = 'weight-bg ';
+        if (isBuilt) bgClass += 'built';
+        else if (isSkipped) bgClass += 'skipped';
+
+        let textClass = 'weight-text ';
+        if (isBuilt) textClass += 'built';
+
+        rect.setAttribute('class', bgClass);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('class', textClass);
+        text.textContent = e.weight + '억';
+
+        gBadge.appendChild(rect);
+        gBadge.appendChild(text);
+        weightsLayer.appendChild(gBadge);
+      });
+
+      // 5-2. 2.5D 미니어처 시설 노드 렌더링
+      const nodesLayer = document.getElementById('nodesLayer');
+      nodesLayer.innerHTML = '';
+
+      currentGraph.nodes.forEach(n => {
+        const isConn = connectedNodeIds.has(n.id);
+        const gNode = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gNode.setAttribute('class', 'node-group');
+        gNode.setAttribute('transform', \`translate(\${n.x}, \${n.y})\`);
+        gNode.style.cursor = 'pointer';
+        gNode.setAttribute('title', n.name + ' - 클릭하여 과학 원리 확인');
+        gNode.onclick = (evt) => {
+          evt.stopPropagation();
+          openFacilityScienceInfo(n);
+        };
+
+        // (1) 지면 접지 드롭 섀도우 (우하단 방향)
+        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        shadow.setAttribute('cx', 8);
+        shadow.setAttribute('cy', 8);
+        shadow.setAttribute('rx', 32);
+        shadow.setAttribute('ry', 14);
+        shadow.setAttribute('class', 'node-ground-shadow');
+
+        // (2) 2.5D 콘크리트 베이스 플레이트 (두께와 입체 단면)
+        const baseThicknessLeft = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        baseThicknessLeft.setAttribute('points', '-30,0 0,16 0,21 -30,5');
+        baseThicknessLeft.setAttribute('fill', isConn ? '#059669' : '#94A3B8');
+
+        const baseThicknessRight = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        baseThicknessRight.setAttribute('points', '0,16 30,0 30,5 0,21');
+        baseThicknessRight.setAttribute('fill', isConn ? '#047857' : '#64748B');
+
+        const baseTop = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        baseTop.setAttribute('points', '0,-16 30,0 0,16 -30,0');
+        baseTop.setAttribute('class', 'node-base-plate ' + (isConn ? 'connected' : ''));
+
+        // (3) 시설별 2.5D 미니어처 건물 심볼 (지면 접지점 0,0에 정렬)
+        const iconUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        iconUse.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#icon-' + (n.icon || 'AI_LAB'));
+        iconUse.setAttribute('transform', 'translate(0, 0)');
+
+        // (4) 노드 ID 뱃지 (좌측 상단 컴팩트 뱃지)
+        const idBadgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        idBadgeBg.setAttribute('cx', -26);
+        idBadgeBg.setAttribute('cy', -24);
+        idBadgeBg.setAttribute('r', 11);
+        idBadgeBg.setAttribute('fill', isConn ? '#065F46' : '#0F172A');
+        idBadgeBg.setAttribute('stroke', isConn ? '#34D399' : '#38BDF8');
+        idBadgeBg.setAttribute('stroke-width', 1.8);
+
+        const idBadgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        idBadgeText.setAttribute('x', -26);
+        idBadgeText.setAttribute('y', -24);
+        idBadgeText.setAttribute('class', 'node-id-badge');
+        idBadgeText.textContent = n.id;
+
+        // (5) 시설 이름 텍스트 라벨 (하단 고대비 수평 캡슐)
+        const labelWidth = n.name.length * 13 + 18;
+        const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        labelBg.setAttribute('x', -labelWidth / 2);
+        labelBg.setAttribute('y', 25);
+        labelBg.setAttribute('width', labelWidth);
+        labelBg.setAttribute('height', 22);
+        labelBg.setAttribute('class', 'node-label-bg ' + (isConn ? 'connected' : ''));
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', 0);
+        label.setAttribute('y', 36.5);
+        label.setAttribute('class', 'node-label');
+        label.textContent = n.name;
+
+        // (6) 미래 도시 과학 정보 확인 뱃지 (우측 상단 🔬 캡슐)
+        const sciBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        sciBadge.setAttribute('class', 'node-sci-badge');
+        sciBadge.setAttribute('transform', 'translate(26, -24)');
+        sciBadge.setAttribute('title', '과학 원리 확인');
+
+        const sciBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        sciBg.setAttribute('cx', 0);
+        sciBg.setAttribute('cy', 0);
+        sciBg.setAttribute('r', 11);
+        sciBg.setAttribute('fill', '#0284C7');
+        sciBg.setAttribute('stroke', '#FFFFFF');
+        sciBg.setAttribute('stroke-width', 1.8);
+
+        const sciText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        sciText.setAttribute('x', 0);
+        sciText.setAttribute('y', 3.5);
+        sciText.setAttribute('text-anchor', 'middle');
+        sciText.setAttribute('font-size', '11px');
+        sciText.textContent = '🔬';
+
+        sciBadge.appendChild(sciBg);
+        sciBadge.appendChild(sciText);
+
+        gNode.appendChild(shadow);
+        gNode.appendChild(baseThicknessLeft);
+        gNode.appendChild(baseThicknessRight);
+        gNode.appendChild(baseTop);
+        gNode.appendChild(iconUse);
+        gNode.appendChild(idBadgeBg);
+        gNode.appendChild(idBadgeText);
+        gNode.appendChild(sciBadge);
+        gNode.appendChild(labelBg);
+        gNode.appendChild(label);
+        nodesLayer.appendChild(gNode);
+      });
+
+      // 5-3. 지도와 100% 동기화되는 도로 건설 카드 목록 갱신
+      renderCards();
+    }
+
+    // 6. 도로 건설 카드 관리 및 양방향 인터랙션 (기본 무작위 셔플 & 윈도우 스크롤 0% 간섭)
+    let cardSortMode = 'random';
+    let shuffledEdgeIds = [];
+
+    // Fisher-Yates 셔플: 참여자가 최저 비용 도로를 직접 찾아보도록 무작위 배열
+    function shuffleCurrentEdges() {
+      if (!currentGraph || !currentGraph.edges) return;
+      const ids = currentGraph.edges.map(e => e.id);
+      for (let i = ids.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [ids[i], ids[j]] = [ids[j], ids[i]];
+      }
+      shuffledEdgeIds = ids;
+    }
+
+    function updateSortButtonState() {
+      const randomBtn = document.getElementById('sortRandomBtn');
+      const costBtn = document.getElementById('sortCostBtn');
+      const nodeBtn = document.getElementById('sortNodeBtn');
+      if (randomBtn) randomBtn.classList.toggle('active', cardSortMode === 'random');
+      if (costBtn) costBtn.classList.toggle('active', cardSortMode === 'cost');
+      if (nodeBtn) nodeBtn.classList.toggle('active', cardSortMode === 'node');
+    }
+
+    function setCardSort(mode) {
+      if (mode === 'random') {
+        shuffleCurrentEdges(); // 무작위 셔플 버튼 누를 때마다 새로 섞음
+      }
+      cardSortMode = mode;
+      updateSortButtonState();
+      renderCards();
+    }
+
+    function renderCards() {
+      const grid = document.getElementById('cardsGrid');
+      if (!grid) return;
+
+      const scrollArea = document.getElementById('cardsScrollArea');
+      const prevScroll = scrollArea ? scrollArea.scrollTop : 0;
+
+      grid.innerHTML = '';
+
+      const countBadge = document.getElementById('cardsCountBadge');
+      if (countBadge) {
+        countBadge.textContent = \`총 \${currentGraph.edges.length}개 후보\`;
+      }
+
+      const nodeMap = new Map();
+      currentGraph.nodes.forEach(n => nodeMap.set(n.id, n));
+
+      // 3대 정렬 모드: (1) 무작위 셔플 (2) 건설비 오름차순 (3) 정점 순
+      let sortedEdges;
+      if (cardSortMode === 'random') {
+        if (!shuffledEdgeIds || shuffledEdgeIds.length !== currentGraph.edges.length) {
+          shuffleCurrentEdges();
+        }
+        const orderMap = new Map();
+        shuffledEdgeIds.forEach((id, idx) => orderMap.set(id, idx));
+        sortedEdges = [...currentGraph.edges].sort((a, b) => {
+          return (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0);
+        });
+      } else if (cardSortMode === 'cost') {
+        sortedEdges = [...currentGraph.edges].sort((a, b) => {
+          return a.weight - b.weight || a.id.localeCompare(b.id);
+        });
+      } else { // 'node'
+        sortedEdges = [...currentGraph.edges].sort((a, b) => {
+          const keyA = \`\${a.source}-\${a.target}\`;
+          const keyB = \`\${b.source}-\${b.target}\`;
+          return keyA.localeCompare(keyB);
+        });
+      }
+
+      let minCandidates = [];
+      if (mainPlayMode === 'LEARN') {
+        const unreviewed = currentGraph.edges.filter(e => !learnReviewedEdgeIds.includes(e.id));
+        minCandidates = getAvailableMinimumEdges(unreviewed);
+      }
+
+      sortedEdges.forEach(e => {
+        let isBuilt = false;
+        let isSkipped = false;
+        let isInspecting = false;
+        let isCandidate = false;
+
+        if (mainPlayMode === 'LEARN') {
+          isBuilt = learnAcceptedEdgeIds.includes(e.id);
+          isSkipped = learnSkippedEdgeIds.includes(e.id);
+          isInspecting = currentInspectingEdge && (currentInspectingEdge.id === e.id);
+          isCandidate = minCandidates.some(c => c.id === e.id);
+        } else {
+          isBuilt = selectedEdgeIds.includes(e.id);
+        }
+
+        const n1 = nodeMap.get(e.source);
+        const n2 = nodeMap.get(e.target);
+
+        let cardClass = 'road-card ';
+        let statusTag = '';
+        let actionHint = '';
+
+        if (mainPlayMode === 'LEARN') {
+          if (isBuilt) {
+            cardClass += 'built';
+            statusTag = '<span class="card-status-tag built">채택 완료 ✓</span>';
+            actionHint = '<span class="card-action-hint">MST 포함</span>';
+          } else if (isSkipped) {
+            cardClass += 'skipped';
+            statusTag = '<span class="card-status-tag" style="background:#FEE2E2; color:#B91C1C; border:1px solid #FCA5A5;">사이클 제외 ✕</span>';
+            actionHint = '<span class="card-action-hint">순환선 제외됨</span>';
+          } else if (isInspecting) {
+            cardClass += 'candidate-target';
+            statusTag = '<span class="card-status-tag" style="background:#FEF3C7; color:#92400E; border:1px solid #F59E0B;">검토 중 ⚡</span>';
+            actionHint = '<span class="card-action-hint">사이클 판단 중</span>';
+          } else if (isCandidate) {
+            cardClass += 'candidate-target';
+            statusTag = '<span class="card-status-tag" style="background:#FEF3C7; color:#92400E; border:1px solid #F59E0B;">검토 대상 ⭐</span>';
+            actionHint = '<span class="card-action-hint">클릭하여 검토</span>';
+          } else {
+            cardClass += 'unbuilt';
+            statusTag = '<span class="card-status-tag unbuilt">대기 중</span>';
+            actionHint = '<span class="card-action-hint">최저가 먼저 검토</span>';
+          }
+        } else {
+          cardClass += isBuilt ? 'built' : 'unbuilt';
+          statusTag = \`<span class="card-status-tag \${isBuilt ? 'built' : 'unbuilt'}">\${isBuilt ? '건설 완료 ✓' : '건설 대기'}</span>\`;
+          actionHint = \`<span class="card-action-hint">\${isBuilt ? '클릭 시 철거' : '클릭 시 건설'}</span>\`;
+        }
+
+        const card = document.createElement('div');
+        card.className = cardClass;
+        card.id = 'card-' + e.id;
+
+        card.innerHTML = \`
+          <div class="card-top">
+            <div class="card-nodes">
+              <span class="node-chip">\${e.source}</span>
+              <span style="color: #94A3B8; font-size: 0.8rem;">⇄</span>
+              <span class="node-chip">\${e.target}</span>
+            </div>
+            <div class="card-cost-badge">
+              \${e.weight}<span class="card-cost-unit">억</span>
+            </div>
+          </div>
+          <div class="card-mid">
+            <div class="card-road-name">\${e.name || '스마트 연결 도로'}</div>
+            <div class="card-facility-flow">\${n1 ? n1.name : e.source} ⇄ \${n2 ? n2.name : e.target}</div>
+          </div>
+          <div class="card-footer">
+            \${statusTag}
+            \${actionHint}
+          </div>
+        \`;
+
+        // 카드 상호작용
+        card.onclick = () => toggleEdge(e.id);
+        card.onmouseenter = () => highlightEdgeOnMap(e.id, true);
+        card.onmouseleave = () => highlightEdgeOnMap(e.id, false);
+
+        grid.appendChild(card);
+      });
+
+      // 스크롤 위치 보존 (카드 재렌더링 시 스크롤 점프 차단)
+      if (scrollArea) {
+        scrollArea.scrollTop = prevScroll;
+      }
+    }
+
+    // 카드 -> 지도 간선/뱃지 강조
+    function highlightEdgeOnMap(edgeId, isHighlight) {
+      const line = document.getElementById('line-' + edgeId);
+      if (line) line.classList.toggle('highlighted', isHighlight);
+
+      const badge = document.getElementById('badge-' + edgeId);
+      if (badge) badge.classList.toggle('highlighted', isHighlight);
+    }
+
+    // [핵심 해결] 지도 흔들림 원천 차단: 브라우저 윈도우 스크롤(scrollIntoView) 대신,
+    // 오직 우측 카드 패널 내부(#cardsScrollArea)의 scrollTop만 안전하게 계산하여 스크롤
+    function scrollCardIntoPanel(card) {
+      const container = document.getElementById('cardsScrollArea');
+      if (!container || !card) return;
+
+      const cardTop = card.offsetTop;
+      const cardBottom = cardTop + card.offsetHeight;
+      const containerTop = container.scrollTop;
+      const containerBottom = containerTop + container.clientHeight;
+
+      // 이미 스크롤 영역 안에 편안하게 노출 중이면 스크롤하지 않음 (불필요한 덜컹거림 방지)
+      if (cardTop >= containerTop + 10 && cardBottom <= containerBottom - 10) {
+        return;
+      }
+
+      // 화면(window)은 절대 건드리지 않고 카드 컨테이너 내부만 부드럽게 스크롤
+      if (cardTop < containerTop + 10) {
+        container.scrollTo({ top: Math.max(0, cardTop - 12), behavior: 'smooth' });
+      } else if (cardBottom > containerBottom - 10) {
+        container.scrollTo({ top: cardBottom - container.clientHeight + 14, behavior: 'smooth' });
+      }
+    }
+
+    // 지도 -> 카드 강조 & 내부 패널 스크롤 포커스 (지도는 1px도 안 움직임)
+    function highlightCard(edgeId, isHighlight) {
+      const card = document.getElementById('card-' + edgeId);
+      if (card) {
+        card.classList.toggle('highlighted', isHighlight);
+        if (isHighlight) {
+          scrollCardIntoPanel(card);
+        }
+      }
+    }
+
+    // 초기화: 1인용 모드 및 닉네임 인풋 기본 렌더링
+    selectGameMode(1);
+  </script>
+</body>
+</html>`;
+}
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Access-Control-Allow-Origin': '*'
+  });
+  res.end(generateGameHtml());
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[LINK CITY 2050] 밝은 2.5D 솔라펑크 게임 서버 실행 중: http://localhost:${PORT}`);
+});
