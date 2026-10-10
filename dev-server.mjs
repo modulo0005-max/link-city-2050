@@ -14,6 +14,7 @@ function generateGameHtml() {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LINK CITY 2050 - 밝은 2.5D 솔라펑크 스마트시티</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <style>
     :root {
       --bg-sky: linear-gradient(135deg, #E0F2FE 0%, #E8F5E9 40%, #F0FDF4 100%);

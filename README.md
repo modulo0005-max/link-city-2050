@@ -126,8 +126,9 @@ npm run build
 
 1. 저장소의 `Settings` $\to$ `Pages` 메뉴로 이동합니다.
 2. **Build and deployment** 항목의 **Source**를 `Deploy from a branch`로 설정합니다.
-3. **Branch**를 `main` 브랜치의 `/dist` 폴더 (또는 루트 `/`)로 지정하고 **Save**를 클릭합니다.
+3. **Branch**를 `main` 브랜치의 `/ (root)` 폴더 (또는 `/docs`)로 지정하고 **Save**를 클릭합니다.
 4. 배포 완료 후 제공되는 URL(예: `https://<username>.github.io/link-city-2050/`)로 접속하여 게임을 플레이할 수 있습니다.
+
 
 ---
 
