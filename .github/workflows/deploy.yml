@@ -1,0 +1,47 @@
+name: Deploy LINK CITY 2050 to GitHub Pages
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+# GitHub Pages 배포를 위한 최소 권한 부여
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 동시 배포 충돌 방지
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 코어 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 2. Node.js 런타임 환경 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 3. 단독 실행 정적 번들 빌드
+        run: node scripts/buildStatic.mjs
+
+      - name: 4. GitHub Pages 메타데이터 구성
+        uses: actions/configure-pages@v5
+
+      - name: 5. 배포 아티팩트 업로드 (docs 디렉토리)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './docs'
+
+      - name: 6. GitHub Pages 실시간 배포 실행
+        id: deployment
+        uses: actions/deploy-pages@v4
