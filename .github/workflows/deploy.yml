@@ -29,10 +29,13 @@ jobs:
       - name: 2. Node.js 런타임 환경 설정
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: 3. 단독 실행 정적 번들 빌드
-        run: node scripts/buildStatic.mjs
+        run: |
+          node scripts/buildStatic.mjs
+          ls -la docs
+
 
       - name: 4. GitHub Pages 메타데이터 구성
         uses: actions/configure-pages@v5

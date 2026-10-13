@@ -3615,4 +3615,1715 @@
       if (mode === 'FREE') {
         freeBox.style.display = 'block';
         learnBox.style.display = 'none';
-        startBtn.textContent = \`\${MODE_CONFIG[gameMode].name} 시작 🚀\
+        startBtn.textContent = \`\${MODE_CONFIG[gameMode].name} 시작 🚀\`;
+      } else {
+        freeBox.style.display = 'none';
+        learnBox.style.display = 'block';
+        startBtn.textContent = '크루스칼 단계별 학습 시작 🚀';
+      }
+    }
+
+    // 메인 시작 버튼 클릭 분기
+    function onMainStartBtnClick() {
+      if (mainPlayMode === 'FREE') {
+        startMultiGame();
+      } else {
+        startLearningGame();
+      }
+    }
+
+    // 개념 모달 열기/닫기
+    function openConceptModal() {
+      const modal = document.getElementById('conceptModalBackdrop');
+      if (modal) modal.classList.add('active');
+    }
+    function closeConceptModal() {
+      const modal = document.getElementById('conceptModalBackdrop');
+      if (modal) modal.classList.remove('active');
+    }
+    function handleModalBackdropClick(evt) {
+      if (evt.target.id === 'conceptModalBackdrop') {
+        closeConceptModal();
+      }
+    }
+
+    // 우측 사이드 패널 탭 전환 (도로 카드 vs 검토 로그)
+    function switchRightPanelTab(tab) {
+      rightPanelTab = tab;
+      const btnCards = document.getElementById('tabBtnCards');
+      const btnLog = document.getElementById('tabBtnLog');
+      const viewCards = document.getElementById('viewCardsContainer');
+      const viewLog = document.getElementById('viewLogContainer');
+
+      if (btnCards) btnCards.classList.toggle('active', tab === 'cards');
+      if (btnLog) btnLog.classList.toggle('active', tab === 'log');
+      if (viewCards) viewCards.style.display = tab === 'cards' ? 'flex' : 'none';
+      if (viewLog) viewLog.style.display = tab === 'log' ? 'flex' : 'none';
+    }
+
+    function selectGameMode(mode) {
+      gameMode = mode;
+      for (let i = 1; i <= 4; i++) {
+        const tab = document.getElementById('mode-tab-' + i);
+        if (tab) tab.classList.toggle('active', i === mode);
+      }
+      const descEl = document.getElementById('modeDescText');
+      if (descEl) descEl.textContent = MODE_CONFIG[mode].desc;
+
+      const startBtn = document.getElementById('startBtn');
+      if (startBtn) startBtn.textContent = \`\${MODE_CONFIG[mode].name} 시작 🚀\`;
+
+      renderPlayerInputs();
+    }
+
+    function renderPlayerInputs() {
+      const container = document.getElementById('playerInputsGrid');
+      if (!container) return;
+      container.innerHTML = '';
+
+      for (let i = 0; i < gameMode; i++) {
+        const card = document.createElement('div');
+        card.className = 'player-input-card';
+        card.innerHTML = \`
+          <span class="player-p-badge p\${i + 1}">P\${i + 1}</span>
+          <input type="text" class="player-name-input" id="player-input-\${i}" 
+            value="\${playerNames[i] || '플레이어 ' + (i + 1)}" 
+            placeholder="플레이어 \${i + 1} 이름" 
+            maxlength="10"
+            onchange="updatePlayerName(\${i}, this.value)" />
+        \`;
+        container.appendChild(card);
+      }
+    }
+
+    function updatePlayerName(idx, val) {
+      playerNames[idx] = val.trim() || \`플레이어 \${idx + 1}\`;
+    }
+
+    function selectDifficulty(diff) {
+      currentDifficulty = diff;
+      document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'));
+      document.getElementById('diff-card-' + diff).classList.add('selected');
+    }
+
+    // 1~4인 게임 시작 진입점
+    function startMultiGame() {
+      // 닉네임 입력 동기화
+      for (let i = 0; i < gameMode; i++) {
+        const input = document.getElementById('player-input-' + i);
+        if (input && input.value.trim()) {
+          playerNames[i] = input.value.trim();
+        }
+      }
+
+      currentGraph = GRAPHS[currentDifficulty];
+      optimalMst = kruskal(currentGraph);
+      currentPlayerIndex = 0;
+      playerRecords = [];
+
+      startPlayerTurn();
+    }
+
+    // 개별 플레이어 턴 시작 (동일한 지도, 동일한 제한시간, 독립 기록)
+    function startPlayerTurn() {
+      selectedEdgeIds = [];
+      history = [];
+      timerSeconds = currentGraph.timeLimit;
+
+      // 무작위 셔플로 도로 카드 배열
+      cardSortMode = 'random';
+      shuffleCurrentEdges();
+      updateSortButtonState();
+
+      document.getElementById('hudCityName').textContent = currentGraph.name;
+
+      // 턴 안내 HUD 뱃지
+      const playerBadge = document.getElementById('hudPlayerBadge');
+      const playerText = document.getElementById('hudPlayerText');
+      if (gameMode > 1) {
+        playerBadge.style.display = 'inline-flex';
+        playerText.textContent = \`P\${currentPlayerIndex + 1} [\${playerNames[currentPlayerIndex]}]님의 차례 (\${currentPlayerIndex + 1} / \${gameMode})\`;
+      } else {
+        playerBadge.style.display = 'none';
+      }
+
+      document.getElementById('mapWrapper').classList.remove('city-powered-on');
+      hideAlert();
+      updateHud();
+      renderMap();
+
+      startTimer();
+      showScreen('play');
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        timerSeconds--;
+        updateTimerDisplay();
+        if (timerSeconds <= 0) {
+          clearInterval(timerInterval);
+          onTimeout();
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(timerSeconds / 60);
+      const secs = timerSeconds % 60;
+      document.getElementById('hudTimer').textContent =
+        \`\${String(mins).padStart(2, '0')}:\${String(secs).padStart(2, '0')}\`;
+    }
+
+    function showAlert(text) {
+      const banner = document.getElementById('alertBanner');
+      document.getElementById('alertText').textContent = text;
+      banner.className = 'cycle';
+      banner.style.display = 'flex';
+      setTimeout(() => { banner.style.display = 'none'; }, 3500);
+    }
+
+    function hideAlert() {
+      document.getElementById('alertBanner').style.display = 'none';
+    }
+
+    function updateHud() {
+      const targetCount = currentGraph.nodes.length - 1;
+      const currentCount = selectedEdgeIds.length;
+      let totalCost = 0;
+      for (const id of selectedEdgeIds) {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) totalCost += e.weight;
+      }
+
+      document.getElementById('hudCost').textContent = totalCost + '억';
+      document.getElementById('hudEdges').textContent = \`\${currentCount} / \${targetCount}\`;
+    }
+
+    // ==========================================
+    // 크루스칼 알고리즘 단계별 학습 모드 핵심 제어기
+    // ==========================================
+    function startLearningGame() {
+      mainPlayMode = 'LEARN';
+      currentGraph = GRAPHS[currentDifficulty];
+      optimalMst = kruskal(currentGraph);
+      learnReviewedEdgeIds = [];
+      learnAcceptedEdgeIds = [];
+      learnSkippedEdgeIds = [];
+      learnSteps = [];
+      currentInspectingEdge = null;
+      learnStepNumber = 1;
+      selectedEdgeIds = [];
+      history = [];
+
+      // 학습 모드 전용 타이머 (학습 시간 측정용 카운트업)
+      timerSeconds = 0;
+      clearInterval(timerInterval);
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        timerSeconds++;
+        updateTimerDisplay();
+      }, 1000);
+
+      document.getElementById('hudCityName').textContent = currentGraph.name;
+
+      // HUD 뱃지 세팅
+      const playerBadge = document.getElementById('hudPlayerBadge');
+      const playerText = document.getElementById('hudPlayerText');
+      playerBadge.style.display = 'inline-flex';
+      playerText.textContent = '📚 크루스칼 탐욕 알고리즘 학습 트레이닝';
+
+      // 조작 버튼 가시성 (학습 모드에서는 전용 인터랙션 사용)
+      document.getElementById('hudUndoBtn').style.display = 'none';
+      document.getElementById('hudResetBtn').style.display = 'none';
+
+      // 대화형 퀴즈 바 노출
+      document.getElementById('learnInteractionBar').style.display = 'flex';
+      document.getElementById('learnQuizBox').style.display = 'none';
+      document.getElementById('quizFeedbackBox').style.display = 'none';
+
+      // 우측 탭 기본을 'cards'로
+      switchRightPanelTab('cards');
+
+      updateLearnHudAndGuide();
+      renderMap();
+      renderCards();
+      renderReviewLogTable();
+
+      showScreen('play');
+    }
+
+    // 학습 모드 가이드 및 HUD 갱신
+    function updateLearnHudAndGuide() {
+      const nodeIds = currentGraph.nodes.map(n => n.id);
+      const targetCount = nodeIds.length - 1;
+      const unreviewed = currentGraph.edges.filter(e => !learnReviewedEdgeIds.includes(e.id));
+      const minCandidates = getAvailableMinimumEdges(unreviewed);
+
+      // HUD 표시
+      let currentCost = 0;
+      for (const id of learnAcceptedEdgeIds) {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) currentCost += e.weight;
+      }
+      document.getElementById('hudCost').textContent = currentCost + '억';
+      document.getElementById('hudEdges').textContent = \`\${learnAcceptedEdgeIds.length} / \${targetCount}\`;
+
+      // 대화형 바 진행 뱃지
+      document.getElementById('learnStepBadge').textContent = \`STEP \${learnStepNumber} • 탐욕적 후보 검토\`;
+      document.getElementById('learnProgressBadge').textContent = 
+        \`채택 \${learnAcceptedEdgeIds.length} / 목표 \${targetCount} (미검토: \${unreviewed.length}개)\`;
+
+      // 안내 문구
+      if (minCandidates.length > 0) {
+        const minW = minCandidates[0].weight;
+        const candidateNames = minCandidates.map(c => \`[\${c.source}-\${c.target}]\`).join(', ');
+        document.getElementById('learnGuideMsg').innerHTML = 
+          \`💡 <strong>가장 비용이 낮은 도로(\${minW}억)</strong> 중 하나를 선택하세요: <span style="color:#0284C7; font-weight:800;">\${candidateNames}</span>\`;
+      } else {
+        document.getElementById('learnGuideMsg').textContent = '모든 후보 도로 검토가 완료되었습니다.';
+      }
+
+      document.getElementById('learnQuizBox').style.display = 'none';
+    }
+
+    // 학습 모드에서 도로(간선 또는 카드) 클릭 시
+    function onLearnEdgeClick(edgeId) {
+      if (currentInspectingEdge) return; // 퀴즈 응답 대기 중이면 중복 클릭 방지
+      if (learnReviewedEdgeIds.includes(edgeId)) {
+        showAlert('ℹ️ 이미 검토를 완료한 도로입니다.');
+        return;
+      }
+
+      const edge = currentGraph.edges.find(e => e.id === edgeId);
+      if (!edge) return;
+
+      const unreviewed = currentGraph.edges.filter(e => !learnReviewedEdgeIds.includes(e.id));
+      const minCandidates = getAvailableMinimumEdges(unreviewed);
+
+      // [핵심 요구사항] 동일한 가중치를 가진 간선들은 어느 순서로 검토해도 인정!
+      const isLegalGreedyChoice = minCandidates.some(c => c.id === edgeId);
+
+      if (!isLegalGreedyChoice) {
+        const minW = minCandidates[0] ? minCandidates[0].weight : 0;
+        showAlert(\`⚠️ 크루스칼 알고리즘은 탐욕(Greedy) 방식으로 가장 비용이 저렴한 도로(\${minW}억)부터 순서대로 검토해야 합니다!\`);
+        flashEdgeCandidateTargets(minCandidates);
+        return;
+      }
+
+      // 올바른 최소 가중치 도로 선택! 퀴즈 활성화
+      currentInspectingEdge = edge;
+      hideAlert();
+
+      document.getElementById('learnQuizBox').style.display = 'flex';
+      document.getElementById('quizQuestionText').innerHTML = 
+        \`도로 <strong>[\${edge.source} - \${edge.target}] (\${edge.weight}억)</strong> 건설 시 <strong>순환선(사이클)</strong>이 발생할까요?\`;
+      document.getElementById('quizFeedbackBox').style.display = 'none';
+
+      renderMap();
+      renderCards();
+    }
+
+    function flashEdgeCandidateTargets(candidates) {
+      candidates.forEach(c => {
+        const line = document.getElementById('line-' + c.id);
+        if (line) {
+          line.classList.add('cycle-flash');
+          setTimeout(() => line.classList.remove('cycle-flash'), 600);
+        }
+      });
+    }
+
+    // 사이클 판단 퀴즈 제출
+    function submitCycleQuiz(userSaysSkip) {
+      if (!currentInspectingEdge) return;
+
+      const edge = currentInspectingEdge;
+      const nodeIds = currentGraph.nodes.map(n => n.id);
+      const testEdges = [
+        ...learnAcceptedEdgeIds.map(id => currentGraph.edges.find(e => e.id === id)),
+        edge
+      ];
+
+      // 실제 사이클 발생 여부 판정
+      const actualHasCycle = hasCycle(testEdges, nodeIds);
+      // 정답 여부: userSaysSkip(건너뛰기/사이클 있음) === actualHasCycle
+      const isCorrect = (userSaysSkip === actualHasCycle);
+
+      const feedbackBox = document.getElementById('quizFeedbackBox');
+      const feedbackIcon = document.getElementById('quizFeedbackIcon');
+      const feedbackText = document.getElementById('quizFeedbackText');
+
+      feedbackBox.className = 'quiz-feedback-box ' + (isCorrect ? 'correct' : 'wrong');
+      feedbackIcon.textContent = isCorrect ? '🎉' : '💡';
+
+      if (isCorrect) {
+        feedbackText.innerHTML = actualHasCycle
+          ? \`<strong>정답입니다!</strong> [\${edge.source}]와 [\${edge.target}]는 이미 다른 경로로 연결되어 있어 사이클(순환선)이 형성되므로 건너뜁니다(제외).\`
+          : \`<strong>정답입니다!</strong> [\${edge.source}]와 [\${edge.target}]는 서로 다른 독립 시설 그룹이므로 안전하게 채택합니다(사이클 없음)!\`;
+      } else {
+        feedbackText.innerHTML = actualHasCycle
+          ? \`<strong>오답입니다:</strong> [\${edge.source}]와 [\${edge.target}]는 이미 간접적으로 연결되어 있어 사이클이 생깁니다. 도로를 건너뛰어야 합니다!\`
+          : \`<strong>오답입니다:</strong> [\${edge.source}]와 [\${edge.target}]는 아직 연결되지 않았으므로 꼭 채택해야 합니다!\`;
+      }
+      feedbackBox.style.display = 'flex';
+
+      // 알고리즘 반영 (학습 결과 기록)
+      const decision = actualHasCycle ? 'SKIPPED' : 'ACCEPTED';
+      const reason = actualHasCycle
+        ? \`[\${edge.source}]와 [\${edge.target}]는 이미 다른 도로망으로 연결되어 있어 순환선(사이클) 발생 → 제외\`
+        : \`[\${edge.source}]와 [\${edge.target}] 독립 시설 그룹을 연결하여 병합 (사이클 없음) → 채택\`;
+
+      if (actualHasCycle) {
+        learnSkippedEdgeIds.push(edge.id);
+      } else {
+        learnAcceptedEdgeIds.push(edge.id);
+      }
+      learnReviewedEdgeIds.push(edge.id);
+
+      let currentCost = 0;
+      learnAcceptedEdgeIds.forEach(id => {
+        const e = currentGraph.edges.find(item => item.id === id);
+        if (e) currentCost += e.weight;
+      });
+
+      learnSteps.push({
+        stepNumber: learnStepNumber,
+        edge: edge,
+        decision: decision,
+        reason: reason,
+        createsCycle: actualHasCycle,
+        currentTotalCost: currentCost,
+        userWasCorrect: isCorrect
+      });
+
+      renderReviewLogTable();
+      renderMap();
+      renderCards();
+
+      const targetCount = currentGraph.nodes.length - 1;
+      const isTargetReached = (learnAcceptedEdgeIds.length === targetCount);
+
+      // 퀴즈 완료 후 다음 상태로 진행
+      clearTimeout(quizFeedbackTimeout);
+      quizFeedbackTimeout = setTimeout(() => {
+        currentInspectingEdge = null;
+        learnStepNumber++;
+
+        if (isTargetReached) {
+          onLearnSuccess();
+        } else {
+          updateLearnHudAndGuide();
+          renderMap();
+          renderCards();
+        }
+      }, 1400);
+    }
+
+    // 학습 모드 완료 시 (n - 1개 채택 달성)
+    function onLearnSuccess() {
+      clearInterval(timerInterval);
+      document.getElementById('mapWrapper').classList.add('city-powered-on');
+
+      setTimeout(() => {
+        let totalCost = 0;
+        learnAcceptedEdgeIds.forEach(id => {
+          const e = currentGraph.edges.find(item => item.id === id);
+          if (e) totalCost += e.weight;
+        });
+
+        // 1인 기록으로 저장하여 공통 리포트 생성
+        playerRecords = [{
+          id: 1,
+          name: '크루스칼 학습 도전자',
+          isCompleted: true,
+          cost: totalCost,
+          timeUsedSeconds: timerSeconds,
+          connectedNodesCount: currentGraph.nodes.length,
+          selectedEdgeIds: [...learnAcceptedEdgeIds],
+          isPerfect: true
+        }];
+
+        showFinalResults();
+      }, 1000);
+    }
+
+    // 검토 로그 테이블 렌더링
+    function renderReviewLogTable() {
+      const tbody = document.getElementById('reviewLogTableBody');
+      const tabCount = document.getElementById('tabLogCount');
+      if (!tbody) return;
+
+      if (tabCount) tabCount.textContent = learnSteps.length;
+
+      if (learnSteps.length === 0) {
+        tbody.innerHTML = \`
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+              아직 검토된 도로가 없습니다.
+            </td>
+          </tr>
+        \`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      learnSteps.forEach(s => {
+        const tr = document.createElement('tr');
+        const badge = s.decision === 'ACCEPTED'
+          ? '<span class="log-badge-accept">채택 ✓</span>'
+          : '<span class="log-badge-skip">제외 ✕</span>';
+
+        tr.innerHTML = \`
+          <td style="font-weight: 800; color: #0284C7;">#\${s.stepNumber}</td>
+          <td style="font-weight: 800;">\${s.edge.source}-\${s.edge.target}</td>
+          <td style="color: var(--amber); font-weight: 800;">\${s.edge.weight}억</td>
+          <td>\${badge}</td>
+          <td style="font-size: 0.8rem; color: #475569;">\${s.reason}</td>
+        \`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 자유 모드 및 학습 모드 통합 도로 클릭 핸들러
+    function toggleEdge(edgeId) {
+      if (mainPlayMode === 'LEARN') {
+        return onLearnEdgeClick(edgeId);
+      }
+
+      hideAlert();
+      const nodeIds = currentGraph.nodes.map(n => n.id);
+
+      if (selectedEdgeIds.includes(edgeId)) {
+        history.push([...selectedEdgeIds]);
+        selectedEdgeIds = selectedEdgeIds.filter(id => id !== edgeId);
+        updateHud();
+        renderMap();
+        return;
+      }
+
+      const candidateEdge = currentGraph.edges.find(e => e.id === edgeId);
+      if (!candidateEdge) return;
+
+      const testEdgeList = [
+        ...selectedEdgeIds.map(id => currentGraph.edges.find(e => e.id === id)),
+        candidateEdge
+      ];
+
+      // 사이클 감지
+      if (hasCycle(testEdgeList, nodeIds)) {
+        showAlert('⚠️ 순환선(사이클) 발생 경고! 이미 다른 친환경 도로망으로 연결된 시설입니다.');
+        flashEdgeCycle(edgeId);
+        return;
+      }
+
+      history.push([...selectedEdgeIds]);
+      selectedEdgeIds.push(edgeId);
+      updateHud();
+      renderMap();
+
+      checkGameCompletion();
+    }
+
+    function flashEdgeCycle(edgeId) {
+      const lineEl = document.getElementById('line-' + edgeId);
+      if (lineEl) {
+        lineEl.classList.add('cycle-flash');
+        setTimeout(() => { lineEl.classList.remove('cycle-flash'); }, 800);
+      }
+      const cardEl = document.getElementById('card-' + edgeId);
+      if (cardEl) {
+        cardEl.classList.add('cycle-flash');
+        scrollCardIntoPanel(cardEl);
+        setTimeout(() => { cardEl.classList.remove('cycle-flash'); }, 800);
+      }
+    }
+
+    function checkGameCompletion() {
+      const nodeIds = currentGraph.nodes.map(n => n.id);
+      const targetCount = nodeIds.length - 1;
+
+      if (selectedEdgeIds.length === targetCount) {
+        const currentEdges = selectedEdgeIds.map(id => currentGraph.edges.find(e => e.id === id));
+        if (isConnected(currentEdges, nodeIds)) {
+          clearInterval(timerInterval);
+          // 도시 전체 점등 효과 발동!
+          document.getElementById('mapWrapper').classList.add('city-powered-on');
+          setTimeout(() => {
+            onGameSuccess(currentEdges);
+          }, 900);
+        }
+      }
+    }
+
+    function onGameSuccess(selectedEdges) {
+      const actualCost = selectedEdges.reduce((sum, e) => sum + e.weight, 0);
+      completePlayerTurn(true, actualCost);
+    }
+
+    function onTimeout() {
+      let currentCost = 0;
+      for (const id of selectedEdgeIds) {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) currentCost += e.weight;
+      }
+      completePlayerTurn(false, currentCost);
+    }
+
+    // 턴 종료 처리 및 비밀 보장 은폐
+    function completePlayerTurn(isCompleted, actualCost) {
+      clearInterval(timerInterval);
+
+      // 연결된 정점 수 계산
+      const connectedNodes = new Set();
+      selectedEdgeIds.forEach(id => {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) {
+          connectedNodes.add(e.source);
+          connectedNodes.add(e.target);
+        }
+      });
+
+      const isPerfect = isCompleted && (actualCost === optimalMst.totalCost);
+      const timeUsed = currentGraph.timeLimit - Math.max(0, timerSeconds);
+
+      // 개별 플레이어의 독립 기록 저장
+      playerRecords[currentPlayerIndex] = {
+        id: currentPlayerIndex + 1,
+        name: playerNames[currentPlayerIndex],
+        isCompleted: isCompleted,
+        cost: actualCost,
+        timeUsedSeconds: timeUsed,
+        connectedNodesCount: connectedNodes.size,
+        selectedEdgeIds: [...selectedEdgeIds],
+        isPerfect: isPerfect
+      };
+
+      // 플레이어 전환 시 이전 결과를 숨김 (화면 및 선택 초기화)
+      selectedEdgeIds = [];
+      history = [];
+      renderMap();
+      renderCards();
+
+      if (currentPlayerIndex < gameMode - 1) {
+        // 다음 플레이어가 남아있으면 턴 전환 인터미션 화면 표시
+        showIntermissionScreen();
+      } else {
+        // 모든 플레이어 종료 시 최종 결과 화면 공개
+        showFinalResults();
+      }
+    }
+
+    function showIntermissionScreen() {
+      const prevName = playerNames[currentPlayerIndex];
+      const nextName = playerNames[currentPlayerIndex + 1];
+
+      document.getElementById('interPrevPlayerNotice').textContent = \`[\${prevName}] 님 건설 종료!\`;
+      document.getElementById('interNextPlayerName').textContent = \`P\${currentPlayerIndex + 2} [\${nextName}] 님\`;
+
+      showScreen('intermission');
+    }
+
+    function proceedNextPlayerTurn() {
+      currentPlayerIndex++;
+      startPlayerTurn();
+    }
+
+    // 2~4인용 승패 판정 및 순위 산정 로직
+    function rankAllPlayers(players) {
+      const sorted = [...players].sort((a, b) => {
+        // 1. 완성 여부 (완성자 > 미완성자)
+        if (a.isCompleted !== b.isCompleted) {
+          return a.isCompleted ? -1 : 1;
+        }
+        // 2. 완성자 간 순위
+        if (a.isCompleted && b.isCompleted) {
+          // 2-1. 건설비 낮은 순
+          if (a.cost !== b.cost) return a.cost - b.cost;
+          // 2-2. 소요 시간 빠른 순 (적게 걸린 순)
+          if (a.timeUsedSeconds !== b.timeUsedSeconds) return a.timeUsedSeconds - b.timeUsedSeconds;
+          return 0; // 공동 순위
+        }
+        // 3. 미완성자 간 순위 (연결 시설 수 > 투입 비용)
+        if (a.connectedNodesCount !== b.connectedNodesCount) {
+          return b.connectedNodesCount - a.connectedNodesCount;
+        }
+        if (a.cost !== b.cost) return a.cost - b.cost;
+        if (a.timeUsedSeconds !== b.timeUsedSeconds) return a.timeUsedSeconds - b.timeUsedSeconds;
+        return 0;
+      });
+
+      // 공동 순위 부여 (1위, 1위, 3위 형태)
+      const ranked = [];
+      for (let i = 0; i < sorted.length; i++) {
+        const cur = sorted[i];
+        let rank = i + 1;
+        let isTie = false;
+        if (i > 0) {
+          const prev = sorted[i - 1];
+          const isSame =
+            cur.isCompleted === prev.isCompleted &&
+            cur.cost === prev.cost &&
+            cur.timeUsedSeconds === prev.timeUsedSeconds &&
+            cur.connectedNodesCount === prev.connectedNodesCount;
+          if (isSame) {
+            rank = ranked[i - 1].rank;
+            isTie = true;
+            ranked[i - 1].isTie = true;
+          }
+        }
+        ranked.push({ ...cur, rank, isTie });
+      }
+      return ranked;
+    }
+
+    function showFinalResults() {
+      if (gameMode === 1) {
+        // 1인용 결과 화면
+        document.getElementById('singleResultBox').style.display = 'block';
+        document.getElementById('multiResultBox').style.display = 'none';
+
+        const rec = playerRecords[0];
+        const resBadge = document.getElementById('resBadge');
+        const resTitle = document.getElementById('resTitle');
+        const resSubtitle = document.getElementById('resSubtitle');
+
+        if (rec.isPerfect) {
+          resBadge.className = 'result-badge perfect';
+          resBadge.textContent = '🏆 PERFECT CITY';
+          resTitle.textContent = '완벽한 스마트시티 건설!';
+          resSubtitle.innerHTML = \`축하합니다! <strong>수학적 최적 비용(\${optimalMst.totalCost}억 원)</strong>으로 모든 친환경 인프라를 완벽히 개통했습니다!\`;
+        } else if (rec.isCompleted) {
+          resBadge.className = 'result-badge success';
+          resBadge.textContent = '도시 연결 완료';
+          resTitle.textContent = '도시 인프라 연결 성공!';
+          resSubtitle.innerHTML = \`모든 시설을 연결했으나 최적 비용(\${optimalMst.totalCost}억 원)보다 \${rec.cost - optimalMst.totalCost}억 원 더 소요되었습니다.<br/>더 스마트한 도로 조합에 다시 도전해 보세요!\`;
+        } else {
+          resBadge.className = 'result-badge timeout';
+          resBadge.textContent = '시간 초과';
+          resTitle.textContent = '제한시간 초과 (미완성 도시)';
+          resSubtitle.textContent = '제한시간 내에 모든 도시 시설을 연결하지 못했습니다. 다시 도전해 보세요!';
+        }
+
+        document.getElementById('resMyCost').textContent = rec.cost + '억';
+        document.getElementById('resOptimalCost').textContent = optimalMst.totalCost + '억';
+      } else {
+        // 2~4인용 멀티플레이어 리더보드 화면
+        document.getElementById('singleResultBox').style.display = 'none';
+        document.getElementById('multiResultBox').style.display = 'block';
+
+        const ranked = rankAllPlayers(playerRecords);
+        const champion = ranked[0];
+
+        document.getElementById('multiLeaderboardBadge').textContent = \`\${MODE_CONFIG[gameMode].icon} \${MODE_CONFIG[gameMode].name}\`;
+        document.getElementById('championName').textContent = champion.name;
+        
+        const champTimeM = Math.floor(champion.timeUsedSeconds / 60);
+        const champTimeS = champion.timeUsedSeconds % 60;
+        const timeStr = \`\${champTimeM}분 \${champTimeS}초\`;
+        document.getElementById('championStat').textContent = 
+          champion.isCompleted 
+            ? \`총 건설비: \${champion.cost}억 원 \${champion.isPerfect ? '(PERFECT CITY ★)' : ''} • 소요 시간: \${timeStr}\`
+            : \`미완성 (연결 시설: \${champion.connectedNodesCount}개) • 투입 비용: \${champion.cost}억 원\`;
+
+        // 랭킹 리스트 동적 렌더링
+        const listEl = document.getElementById('rankingsList');
+        listEl.innerHTML = '';
+
+        ranked.forEach(p => {
+          const row = document.createElement('div');
+          row.className = \`rank-row-card rank-\${p.rank} \${!p.isCompleted ? 'uncompleted' : ''}\`;
+
+          const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : '🎖️';
+          const tM = Math.floor(p.timeUsedSeconds / 60);
+          const tS = p.timeUsedSeconds % 60;
+
+          let statusBadge = '';
+          if (p.isPerfect) {
+            statusBadge = '<span class="rank-status-pill perfect">PERFECT CITY 🏆</span>';
+          } else if (p.isCompleted) {
+            statusBadge = '<span class="rank-status-pill done">완주 성공 ✓</span>';
+          } else {
+            statusBadge = '<span class="rank-status-pill timeout">시간 초과 (미완성)</span>';
+          }
+
+          row.innerHTML = \`
+            <div class="rank-badge-box">
+              <span class="rank-num-badge r\${Math.min(4, p.rank)}">\${p.rank}위</span>
+              <span style="font-size: 1.4rem;">\${medal}</span>
+              \${p.isTie ? '<span class="tie-tag">공동</span>' : ''}
+            </div>
+
+            <div class="rank-player-info">
+              <div class="rank-player-name">\${p.name}</div>
+              <div class="rank-player-sub">P\${p.id} • 연결 시설: \${p.connectedNodesCount}개 / \${currentGraph.nodes.length}개</div>
+            </div>
+
+            <div class="rank-stats-group">
+              <div class="rank-stat-col">
+                <span class="label">총 건설비</span>
+                <span class="val" style="color: var(--amber);">\${p.cost}억</span>
+              </div>
+              <div class="rank-stat-col">
+                <span class="label">소요 시간</span>
+                <span class="val" style="color: #0284C7;">\${tM}분 \${tS}초</span>
+              </div>
+              <div>\${statusBadge}</div>
+            </div>
+          \`;
+          listEl.appendChild(row);
+        });
+      }
+
+      showScreen('result');
+      renderGameReport();
+      initBonusScienceQuiz(); // 게임 종료 후 선택형 과학 퀴즈 1문제 출제 (기본 게임 점수 영향 0%)
+    }
+
+    // ================= 4. 공통 결과 리포트 및 크루스칼 단계별 재생기 로직 =================
+    function renderGameReport() {
+      if (!currentGraph) return;
+      const nodeIds = currentGraph.nodes.map(n => n.id);
+      replayHistory = kruskalWithHistory(currentGraph);
+
+      // 플레이어 기록 추출 (싱글/학습은 playerRecords[0], 멀티는 1위)
+      let playerRec = playerRecords[0];
+      if (gameMode > 1 && playerRecords.length > 0) {
+        const ranked = rankAllPlayers(playerRecords);
+        playerRec = ranked[0] || playerRecords[0];
+      }
+
+      if (!playerRec) {
+        playerRec = {
+          cost: 0,
+          selectedEdgeIds: [],
+          isCompleted: false,
+          name: '도전자'
+        };
+      }
+
+      const myCost = playerRec.cost;
+      const optCost = optimalMst ? optimalMst.totalCost : 0;
+      const costDiff = myCost - optCost;
+
+      // [핵심 원칙] 복수 최소 신장 트리(Multiple MSTs) 완벽 인정 수학적 판정
+      // (1) 간선 수 n-1개, (2) 전체 연결, (3) 사이클 없음, (4) 총 가중치 합이 최적 비용과 일치
+      const playerEdges = (playerRec.selectedEdgeIds || [])
+        .map(id => currentGraph.edges.find(e => e.id === id))
+        .filter(Boolean);
+      const isConnectedAll = isConnected(playerEdges, nodeIds);
+      const hasCycleCheck = hasCycle(playerEdges, nodeIds);
+      const isTargetCount = playerEdges.length === (nodeIds.length - 1);
+      const isMultipleMstValid = playerRec.isCompleted && (costDiff === 0) && isConnectedAll && !hasCycleCheck && isTargetCount;
+
+      document.getElementById('repMyCost').textContent = myCost + '억';
+      document.getElementById('repOptimalCost').textContent = optCost + '억';
+
+      const repDiffEl = document.getElementById('repCostDiff');
+      const repBadgeEl = document.getElementById('repVerdictBadge');
+
+      if (isMultipleMstValid) {
+        repDiffEl.textContent = '0억 (동일)';
+        repDiffEl.style.color = '#059669';
+        repBadgeEl.innerHTML = '<span class="diff-badge-highlight perfect">🏆 최적 MST 달성 (100% 최적해)</span>';
+      } else if (playerRec.isCompleted) {
+        repDiffEl.textContent = \`+\${costDiff}억\`;
+        repDiffEl.style.color = '#D97706';
+        repBadgeEl.innerHTML = \`<span class="diff-badge-highlight gap">⚠️ +\${costDiff}억 차이 (개선 여지 있음)</span>\`;
+      } else {
+        repDiffEl.textContent = '미완성';
+        repDiffEl.style.color = '#DC2626';
+        repBadgeEl.innerHTML = '<span class="diff-badge-highlight gap" style="background:#FEE2E2; color:#991B1B; border-color:#FCA5A5;">⏱️ 미완성 (시간 초과)</span>';
+      }
+
+      // 리플레이 슬라이더 초기화
+      const maxSteps = replayHistory.steps.length;
+      const slider = document.getElementById('replaySlider');
+      if (slider) {
+        slider.min = 0;
+        slider.max = maxSteps;
+        slider.value = 0;
+      }
+      const maxLabel = document.getElementById('replayMaxStepLabel');
+      if (maxLabel) {
+        maxLabel.textContent = \`END (Step \${maxSteps})\`;
+      }
+
+      // 기본 뷰: 나의 연결망 보기
+      reportViewMode = 'player';
+      document.getElementById('btnViewMine').classList.add('active');
+      document.getElementById('btnViewOptimal').classList.remove('active');
+      pauseReplay();
+      setReplayStep(0, false);
+      renderReportMap();
+    }
+
+    // 연결망 시각화 토글 ([나의 연결망] ↔ [크루스칼 최적 연결망])
+    function toggleReportView(viewMode) {
+      pauseReplay();
+      reportViewMode = viewMode;
+      document.getElementById('btnViewMine').classList.toggle('active', viewMode === 'player');
+      document.getElementById('btnViewOptimal').classList.toggle('active', viewMode === 'optimal');
+
+      const titleEl = document.getElementById('repMapHeaderTitle');
+      const subEl = document.getElementById('repMapHeaderSub');
+      const playerRec = playerRecords[0] || { cost: 0, selectedEdgeIds: [] };
+
+      if (viewMode === 'player') {
+        if (titleEl) titleEl.textContent = '👷 [나의 연결망] 건설 현황';
+        if (subEl) subEl.textContent = \`선택한 도로: \${(playerRec.selectedEdgeIds || []).length}개 • 총 비용: \${playerRec.cost}억\`;
+      } else {
+        if (titleEl) titleEl.textContent = '🤖 [크루스칼 최적해] 최소 신장 트리(MST)';
+        if (subEl) subEl.textContent = \`최적 도로: \${optimalMst.edges.length}개 • 최소 비용: \${optimalMst.totalCost}억\`;
+      }
+
+      renderReportMap();
+    }
+
+    // 크루스칼 알고리즘 단계별 탐색
+    function setReplayStep(idx, shouldPause = true) {
+      if (!replayHistory || !replayHistory.steps) return;
+      if (shouldPause) pauseReplay();
+
+      const totalSteps = replayHistory.steps.length;
+      replayCurrentStep = Math.max(0, Math.min(idx, totalSteps));
+
+      const slider = document.getElementById('replaySlider');
+      if (slider) slider.value = replayCurrentStep;
+
+      const counter = document.getElementById('replayStepCounter');
+      if (counter) counter.textContent = \`Step \${replayCurrentStep} / \${totalSteps}\`;
+
+      const infoBox = document.getElementById('replayInfoBox');
+      const titleEl = document.getElementById('repMapHeaderTitle');
+      const subEl = document.getElementById('repMapHeaderSub');
+
+      if (replayCurrentStep === 0) {
+        if (infoBox) {
+          infoBox.innerHTML = \`🏁 <strong>크루스칼 알고리즘 시작 준비:</strong> 모든 도로를 가중치(비용) 오름차순으로 정렬했습니다. [▶ 재생] 또는 [다음 단계]를 눌러 탐욕적 선택 과정을 확인하세요.\`;
+        }
+        if (subEl) subEl.textContent = \`초기 상태 (0개 도로 채택)\`;
+      } else {
+        const stepObj = replayHistory.steps[replayCurrentStep - 1];
+        const isAccept = (stepObj.decision === 'ACCEPTED');
+        const badge = isAccept
+          ? '<span class="log-badge-accept">채택 ✓</span>'
+          : '<span class="log-badge-skip">사이클 제외 ✕</span>';
+
+        if (infoBox) {
+          infoBox.innerHTML = \`
+            <div style="margin-bottom: 4px;">
+              <strong>Step \${stepObj.stepNumber}: 도로 [\${stepObj.edge.source} - \${stepObj.edge.target}] (\${stepObj.edge.weight}억)</strong> — \${badge}
+            </div>
+            <div style="color: #475569; font-size: 0.88rem; margin-bottom: 4px;">
+              \${stepObj.reason}
+            </div>
+            <div style="font-size: 0.82rem; font-weight: 700; color: #0284C7;">
+              현재 누적 MST 비용: \${stepObj.currentTotalCost}억 | 채택 도로: \${stepObj.currentMstEdges.length} / \${replayHistory.targetEdgeCount}개
+              \${stepObj.targetReached ? ' <strong style="color: #059669;">🎉 모든 시설 연결 완료 (MST 완성)!</strong>' : ''}
+            </div>
+          \`;
+        }
+        if (subEl) {
+          subEl.textContent = \`채택: \${stepObj.currentMstEdges.length}개 / \${replayHistory.targetEdgeCount}개 • 누적: \${stepObj.currentTotalCost}억\`;
+        }
+      }
+
+      if (shouldPause || replayIsPlaying) {
+        reportViewMode = 'replay';
+        document.getElementById('btnViewMine').classList.remove('active');
+        document.getElementById('btnViewOptimal').classList.remove('active');
+        if (titleEl) titleEl.textContent = \`▶️ [알고리즘 재생] Step \${replayCurrentStep} / \${totalSteps}\`;
+      }
+
+      renderReportMap();
+    }
+
+    function onReplaySliderInput(val) {
+      setReplayStep(parseInt(val, 10), true);
+    }
+
+    function toggleReplayPlay() {
+      if (replayIsPlaying) {
+        pauseReplay();
+      } else {
+        playReplay();
+      }
+    }
+
+    function playReplay() {
+      if (!replayHistory || !replayHistory.steps) return;
+      if (replayCurrentStep >= replayHistory.steps.length) {
+        replayCurrentStep = 0;
+      }
+      replayIsPlaying = true;
+      const btn = document.getElementById('btnReplayPlayToggle');
+      if (btn) btn.innerHTML = '⏸ 일시정지';
+
+      reportViewMode = 'replay';
+      document.getElementById('btnViewMine').classList.remove('active');
+      document.getElementById('btnViewOptimal').classList.remove('active');
+
+      clearInterval(replayInterval);
+      replayInterval = setInterval(() => {
+        if (replayCurrentStep < replayHistory.steps.length) {
+          setReplayStep(replayCurrentStep + 1, false);
+        } else {
+          pauseReplay();
+        }
+      }, 1400);
+    }
+
+    function pauseReplay() {
+      replayIsPlaying = false;
+      const btn = document.getElementById('btnReplayPlayToggle');
+      if (btn) btn.innerHTML = '▶ 재생';
+      clearInterval(replayInterval);
+    }
+
+    function seekReplayFirst() { setReplayStep(0, true); }
+    function seekReplayPrev() { setReplayStep(replayCurrentStep - 1, true); }
+    function seekReplayNext() { setReplayStep(replayCurrentStep + 1, true); }
+    function seekReplayLast() {
+      if (replayHistory && replayHistory.steps) {
+        setReplayStep(replayHistory.steps.length, true);
+      }
+    }
+
+    // 리포트 전용 지도 렌더러 (독립 SVG)
+    function renderReportMap() {
+      if (!currentGraph) return;
+      const nodeMap = new Map();
+      currentGraph.nodes.forEach(n => nodeMap.set(n.id, n));
+
+      const repEdgesLayer = document.getElementById('repEdgesLayer');
+      const repWeightsLayer = document.getElementById('repWeightsLayer');
+      const repNodesLayer = document.getElementById('repNodesLayer');
+      if (!repEdgesLayer || !repWeightsLayer || !repNodesLayer) return;
+
+      repEdgesLayer.innerHTML = '';
+      repWeightsLayer.innerHTML = '';
+      repNodesLayer.innerHTML = '';
+
+      let playerRec = playerRecords[0] || { selectedEdgeIds: [] };
+      if (gameMode > 1 && playerRecords.length > 0) {
+        const ranked = rankAllPlayers(playerRecords);
+        playerRec = ranked[0] || playerRecords[0];
+      }
+
+      let builtEdgeIds = new Set();
+      let inspectingEdgeId = null;
+      let inspectingDecision = null;
+      let skippedEdgeIds = new Set();
+
+      if (reportViewMode === 'player') {
+        builtEdgeIds = new Set(playerRec.selectedEdgeIds || []);
+      } else if (reportViewMode === 'optimal') {
+        (optimalMst ? optimalMst.edges : []).forEach(e => builtEdgeIds.add(e.id));
+      } else if (reportViewMode === 'replay') {
+        if (replayHistory && replayCurrentStep > 0) {
+          const curStepObj = replayHistory.steps[replayCurrentStep - 1];
+          curStepObj.currentMstEdges.forEach(e => builtEdgeIds.add(e.id));
+          inspectingEdgeId = curStepObj.edge.id;
+          inspectingDecision = curStepObj.decision;
+
+          const stepsUpToNow = replayHistory.steps.slice(0, replayCurrentStep);
+          stepsUpToNow.forEach(s => {
+            if (s.decision === 'SKIPPED') skippedEdgeIds.add(s.edge.id);
+          });
+        }
+      }
+
+      // 연결된 노드 집합
+      const connectedNodeIds = new Set();
+      builtEdgeIds.forEach(id => {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) {
+          connectedNodeIds.add(e.source);
+          connectedNodeIds.add(e.target);
+        }
+      });
+
+      // 도로선 렌더링
+      currentGraph.edges.forEach(e => {
+        const n1 = nodeMap.get(e.source);
+        const n2 = nodeMap.get(e.target);
+        if (!n1 || !n2) return;
+
+        const isBuilt = builtEdgeIds.has(e.id);
+        const isCurrentStep = (e.id === inspectingEdgeId);
+        const isSkipped = skippedEdgeIds.has(e.id);
+        const badgePos = getBadgePos(n1, n2, e.badgeT || 0.5, e.badgeOffset || 0);
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', n1.x);
+        line.setAttribute('y1', n1.y);
+        line.setAttribute('x2', n2.x);
+        line.setAttribute('y2', n2.y);
+
+        let strokeColor = '#CBD5E1';
+        let strokeW = '2.5';
+        let strokeDash = '4 4';
+
+        if (isCurrentStep) {
+          if (inspectingDecision === 'ACCEPTED') {
+            strokeColor = '#F59E0B';
+            strokeW = '7';
+            strokeDash = 'none';
+          } else {
+            strokeColor = '#EF4444';
+            strokeW = '5';
+            strokeDash = '6 4';
+          }
+        } else if (isBuilt) {
+          strokeColor = (reportViewMode === 'optimal') ? '#0284C7' : '#059669';
+          strokeW = '5.5';
+          strokeDash = 'none';
+        } else if (isSkipped) {
+          strokeColor = '#EF4444';
+          strokeW = '2.5';
+          strokeDash = '4 4';
+        }
+
+        line.setAttribute('stroke', strokeColor);
+        line.setAttribute('stroke-width', strokeW);
+        line.setAttribute('stroke-linecap', 'round');
+        if (strokeDash !== 'none') {
+          line.setAttribute('stroke-dasharray', strokeDash);
+        }
+        repEdgesLayer.appendChild(line);
+
+        // 가중치 뱃지
+        const gBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gBadge.setAttribute('transform', \`translate(\${badgePos.x}, \${badgePos.y})\`);
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', -22);
+        rect.setAttribute('y', -13);
+        rect.setAttribute('width', 44);
+        rect.setAttribute('height', 26);
+        rect.setAttribute('rx', 13);
+
+        let rectFill = '#FFFFFF';
+        let rectStroke = '#CBD5E1';
+        let textColor = '#64748B';
+
+        if (isCurrentStep) {
+          rectFill = (inspectingDecision === 'ACCEPTED') ? '#F59E0B' : '#EF4444';
+          rectStroke = '#FFFFFF';
+          textColor = '#FFFFFF';
+        } else if (isBuilt) {
+          rectFill = (reportViewMode === 'optimal') ? '#0284C7' : '#059669';
+          rectStroke = '#FFFFFF';
+          textColor = '#FFFFFF';
+        } else if (isSkipped) {
+          rectFill = '#FEE2E2';
+          rectStroke = '#FCA5A5';
+          textColor = '#B91C1C';
+        }
+
+        rect.setAttribute('fill', rectFill);
+        rect.setAttribute('stroke', rectStroke);
+        rect.setAttribute('stroke-width', '1.5');
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', 0);
+        text.setAttribute('y', 4);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('font-size', '11.5');
+        text.setAttribute('font-weight', '800');
+        text.setAttribute('fill', textColor);
+        text.textContent = e.weight + '억';
+
+        gBadge.appendChild(rect);
+        gBadge.appendChild(text);
+        repWeightsLayer.appendChild(gBadge);
+      });
+
+      // 노드 렌더링
+      currentGraph.nodes.forEach(n => {
+        const isConn = connectedNodeIds.has(n.id);
+        const gNode = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gNode.setAttribute('transform', \`translate(\${n.x}, \${n.y})\`);
+
+        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        shadow.setAttribute('cx', 8);
+        shadow.setAttribute('cy', 8);
+        shadow.setAttribute('rx', 28);
+        shadow.setAttribute('ry', 12);
+        shadow.setAttribute('fill', 'rgba(15, 23, 42, 0.16)');
+
+        const baseTop = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        baseTop.setAttribute('points', '0,-15 28,0 0,15 -28,0');
+        baseTop.setAttribute('fill', isConn ? '#DCFCE7' : '#F1F5F9');
+        baseTop.setAttribute('stroke', isConn ? '#10B981' : '#CBD5E1');
+        baseTop.setAttribute('stroke-width', '1.5');
+
+        const iconUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        iconUse.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#icon-' + (n.icon || 'AI_LAB'));
+
+        const idBadgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        idBadgeBg.setAttribute('cx', -24);
+        idBadgeBg.setAttribute('cy', -22);
+        idBadgeBg.setAttribute('r', 10);
+        idBadgeBg.setAttribute('fill', isConn ? '#065F46' : '#0F172A');
+        idBadgeBg.setAttribute('stroke', isConn ? '#34D399' : '#38BDF8');
+        idBadgeBg.setAttribute('stroke-width', '1.5');
+
+        const idBadgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        idBadgeText.setAttribute('x', -24);
+        idBadgeText.setAttribute('y', -18);
+        idBadgeText.setAttribute('text-anchor', 'middle');
+        idBadgeText.setAttribute('fill', '#FFFFFF');
+        idBadgeText.setAttribute('font-size', '10.5');
+        idBadgeText.setAttribute('font-weight', '900');
+        idBadgeText.textContent = n.id;
+
+        const labelWidth = n.name.length * 12 + 16;
+        const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        labelBg.setAttribute('x', -labelWidth / 2);
+        labelBg.setAttribute('y', 22);
+        labelBg.setAttribute('width', labelWidth);
+        labelBg.setAttribute('height', 20);
+        labelBg.setAttribute('rx', 10);
+        labelBg.setAttribute('fill', isConn ? '#065F46' : '#1E293B');
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', 0);
+        label.setAttribute('y', 33);
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('fill', '#FFFFFF');
+        label.setAttribute('font-size', '10.5');
+        label.setAttribute('font-weight', '700');
+        label.textContent = n.name;
+
+        gNode.appendChild(shadow);
+        gNode.appendChild(baseTop);
+        gNode.appendChild(iconUse);
+        gNode.appendChild(idBadgeBg);
+        gNode.appendChild(idBadgeText);
+        gNode.appendChild(labelBg);
+        gNode.appendChild(label);
+        repNodesLayer.appendChild(gNode);
+      });
+    }
+
+    function undoLastEdge() {
+      if (history.length > 0) {
+        selectedEdgeIds = history.pop();
+        hideAlert();
+        updateHud();
+        renderMap();
+      }
+    }
+
+    function resetCurrentGame() {
+      selectedEdgeIds = [];
+      history = [];
+      hideAlert();
+      updateHud();
+      renderMap();
+    }
+
+    function restartSameDifficulty() {
+      pauseReplay();
+      if (mainPlayMode === 'LEARN') {
+        startLearningGame();
+      } else {
+        startMultiGame();
+      }
+    }
+
+    function exitToTitle() {
+      clearInterval(timerInterval);
+      pauseReplay();
+      showScreen('title');
+    }
+
+    // 4. 지능형 가중치 뱃지 위치 계산 (충돌 회피 & 수직 법선 오프셋 & 경계 여백 보장)
+    function getBadgePos(n1, n2, t = 0.5, offset = 0) {
+      const bx = n1.x + (n2.x - n1.x) * t;
+      const by = n1.y + (n2.y - n1.y) * t;
+      let finalX = bx;
+      let finalY = by;
+
+      if (offset) {
+        const dx = n2.x - n1.x;
+        const dy = n2.y - n1.y;
+        const len = Math.hypot(dx, dy) || 1;
+        // 간선 방향의 수직 법선 벡터 (-dy, dx)
+        finalX += (-dy / len) * offset;
+        finalY += (dx / len) * offset;
+      }
+
+      // SVG viewBox(1000 x 860) 경계 여백 35px 확보
+      finalX = Math.max(35, Math.min(965, finalX));
+      finalY = Math.max(35, Math.min(825, finalY));
+
+      return { x: finalX, y: finalY };
+    }
+
+    // 5. SVG 맵 렌더링
+    function renderMap() {
+      const nodeMap = new Map();
+      currentGraph.nodes.forEach(n => nodeMap.set(n.id, n));
+
+      const connectedNodeIds = new Set();
+      const currentActiveEdgeIds = (mainPlayMode === 'LEARN') ? learnAcceptedEdgeIds : selectedEdgeIds;
+      currentActiveEdgeIds.forEach(id => {
+        const e = currentGraph.edges.find(edge => edge.id === id);
+        if (e) {
+          connectedNodeIds.add(e.source);
+          connectedNodeIds.add(e.target);
+        }
+      });
+
+      const edgesLayer = document.getElementById('edgesLayer');
+      const weightsLayer = document.getElementById('weightsLayer');
+      edgesLayer.innerHTML = '';
+      weightsLayer.innerHTML = '';
+
+      // 미검토 간선 중 최소 가중치 후보군 (학습 모드 탐욕 선택 안내용)
+      let minCandidates = [];
+      if (mainPlayMode === 'LEARN') {
+        const unreviewed = currentGraph.edges.filter(e => !learnReviewedEdgeIds.includes(e.id));
+        minCandidates = getAvailableMinimumEdges(unreviewed);
+      }
+
+      // 5-1. 도로 렌더링
+      currentGraph.edges.forEach(e => {
+        const n1 = nodeMap.get(e.source);
+        const n2 = nodeMap.get(e.target);
+        if (!n1 || !n2) return;
+
+        let isBuilt = false;
+        let isSkipped = false;
+        let isInspecting = false;
+        let isCandidate = false;
+
+        if (mainPlayMode === 'LEARN') {
+          isBuilt = learnAcceptedEdgeIds.includes(e.id);
+          isSkipped = learnSkippedEdgeIds.includes(e.id);
+          isInspecting = currentInspectingEdge && (currentInspectingEdge.id === e.id);
+          isCandidate = minCandidates.some(c => c.id === e.id);
+        } else {
+          isBuilt = selectedEdgeIds.includes(e.id);
+        }
+        const badgePos = getBadgePos(n1, n2, e.badgeT || 0.5, e.badgeOffset || 0);
+
+        const dx = n2.x - n1.x;
+        const dy = n2.y - n1.y;
+        const edgeLen = Math.hypot(dx, dy) || 1;
+        // 노드 중심으로부터 28px 여백을 두어 인접 도로 클릭 영역 간 충돌을 방지
+        const pad = Math.min(28, edgeLen * 0.22);
+        const hx1 = n1.x + (dx / edgeLen) * pad;
+        const hy1 = n1.y + (dy / edgeLen) * pad;
+        const hx2 = n2.x - (dx / edgeLen) * pad;
+        const hy2 = n2.y - (dy / edgeLen) * pad;
+
+        // 시각적 선보다 넓고 안전한(32px) 도로 클릭 히트박스
+        const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        hitbox.setAttribute('x1', hx1);
+        hitbox.setAttribute('y1', hy1);
+        hitbox.setAttribute('x2', hx2);
+        hitbox.setAttribute('y2', hy2);
+        hitbox.setAttribute('class', 'edge-hitbox');
+        hitbox.setAttribute('id', 'hitbox-' + e.id);
+        hitbox.onclick = () => toggleEdge(e.id);
+        // 지도 -> 카드 및 뱃지 양방향 강조 연동
+        hitbox.onmouseenter = () => {
+          highlightCard(e.id, true);
+          const bEl = document.getElementById('badge-' + e.id);
+          if (bEl) bEl.classList.add('highlighted');
+        };
+        hitbox.onmouseleave = () => {
+          highlightCard(e.id, false);
+          const bEl = document.getElementById('badge-' + e.id);
+          if (bEl) bEl.classList.remove('highlighted');
+        };
+
+        // 가시 도로 라인
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', n1.x);
+        line.setAttribute('y1', n1.y);
+        line.setAttribute('x2', n2.x);
+        line.setAttribute('y2', n2.y);
+        let lineClass = 'edge-line ';
+        if (isBuilt) {
+          lineClass += 'built';
+        } else if (isInspecting) {
+          lineClass += 'candidate-pulse';
+        } else if (isCandidate) {
+          lineClass += 'candidate-pulse';
+        } else if (isSkipped) {
+          lineClass += 'edge-skipped';
+        } else {
+          lineClass += 'unbuilt';
+        }
+        line.setAttribute('class', lineClass);
+        line.setAttribute('id', 'line-' + e.id);
+
+        edgesLayer.appendChild(hitbox);
+        edgesLayer.appendChild(line);
+
+        // 고대비 캡슐 건설비 뱃지 (pointer-events: none 적용으로 클릭 방해 0%)
+        const gBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gBadge.setAttribute('class', 'weight-badge');
+        gBadge.setAttribute('id', 'badge-' + e.id);
+        gBadge.setAttribute('transform', \`translate(\${badgePos.x}, \${badgePos.y})\`);
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', -23);
+        rect.setAttribute('y', -14);
+        rect.setAttribute('width', 46);
+        rect.setAttribute('height', 28);
+        rect.setAttribute('rx', 14);
+        let bgClass = 'weight-bg ';
+        if (isBuilt) bgClass += 'built';
+        else if (isSkipped) bgClass += 'skipped';
+
+        let textClass = 'weight-text ';
+        if (isBuilt) textClass += 'built';
+
+        rect.setAttribute('class', bgClass);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('class', textClass);
+        text.textContent = e.weight + '억';
+
+        gBadge.appendChild(rect);
+        gBadge.appendChild(text);
+        weightsLayer.appendChild(gBadge);
+      });
+
+      // 5-2. 2.5D 미니어처 시설 노드 렌더링
+      const nodesLayer = document.getElementById('nodesLayer');
+      nodesLayer.innerHTML = '';
+
+      currentGraph.nodes.forEach(n => {
+        const isConn = connectedNodeIds.has(n.id);
+        const gNode = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gNode.setAttribute('class', 'node-group');
+        gNode.setAttribute('transform', \`translate(\${n.x}, \${n.y})\`);
+        gNode.style.cursor = 'pointer';
+        gNode.setAttribute('title', n.name + ' - 클릭하여 과학 원리 확인');
+        gNode.onclick = (evt) => {
+          evt.stopPropagation();
+          openFacilityScienceInfo(n);
+        };
+
+        // (1) 지면 접지 드롭 섀도우 (우하단 방향)
+        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        shadow.setAttribute('cx', 8);
+        shadow.setAttribute('cy', 8);
+        shadow.setAttribute('rx', 32);
+        shadow.setAttribute('ry', 14);
+        shadow.setAttribute('class', 'node-ground-shadow');
+
+        // (2) 2.5D 콘크리트 베이스 플레이트 (두께와 입체 단면)
+        const baseThicknessLeft = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        baseThicknessLeft.setAttribute('points', '-30,0 0,16 0,21 -30,5');
+        baseThicknessLeft.setAttribute('fill', isConn ? '#059669' : '#94A3B8');
+
+        const baseThicknessRight = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        baseThicknessRight.setAttribute('points', '0,16 30,0 30,5 0,21');
+        baseThicknessRight.setAttribute('fill', isConn ? '#047857' : '#64748B');
+
+        const baseTop = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        baseTop.setAttribute('points', '0,-16 30,0 0,16 -30,0');
+        baseTop.setAttribute('class', 'node-base-plate ' + (isConn ? 'connected' : ''));
+
+        // (3) 시설별 2.5D 미니어처 건물 심볼 (지면 접지점 0,0에 정렬)
+        const iconUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        iconUse.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#icon-' + (n.icon || 'AI_LAB'));
+        iconUse.setAttribute('transform', 'translate(0, 0)');
+
+        // (4) 노드 ID 뱃지 (좌측 상단 컴팩트 뱃지)
+        const idBadgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        idBadgeBg.setAttribute('cx', -26);
+        idBadgeBg.setAttribute('cy', -24);
+        idBadgeBg.setAttribute('r', 11);
+        idBadgeBg.setAttribute('fill', isConn ? '#065F46' : '#0F172A');
+        idBadgeBg.setAttribute('stroke', isConn ? '#34D399' : '#38BDF8');
+        idBadgeBg.setAttribute('stroke-width', 1.8);
+
+        const idBadgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        idBadgeText.setAttribute('x', -26);
+        idBadgeText.setAttribute('y', -24);
+        idBadgeText.setAttribute('class', 'node-id-badge');
+        idBadgeText.textContent = n.id;
+
+        // (5) 시설 이름 텍스트 라벨 (하단 고대비 수평 캡슐)
+        const labelWidth = n.name.length * 13 + 18;
+        const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        labelBg.setAttribute('x', -labelWidth / 2);
+        labelBg.setAttribute('y', 25);
+        labelBg.setAttribute('width', labelWidth);
+        labelBg.setAttribute('height', 22);
+        labelBg.setAttribute('class', 'node-label-bg ' + (isConn ? 'connected' : ''));
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', 0);
+        label.setAttribute('y', 36.5);
+        label.setAttribute('class', 'node-label');
+        label.textContent = n.name;
+
+        // (6) 미래 도시 과학 정보 확인 뱃지 (우측 상단 🔬 캡슐)
+        const sciBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        sciBadge.setAttribute('class', 'node-sci-badge');
+        sciBadge.setAttribute('transform', 'translate(26, -24)');
+        sciBadge.setAttribute('title', '과학 원리 확인');
+
+        const sciBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        sciBg.setAttribute('cx', 0);
+        sciBg.setAttribute('cy', 0);
+        sciBg.setAttribute('r', 11);
+        sciBg.setAttribute('fill', '#0284C7');
+        sciBg.setAttribute('stroke', '#FFFFFF');
+        sciBg.setAttribute('stroke-width', 1.8);
+
+        const sciText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        sciText.setAttribute('x', 0);
+        sciText.setAttribute('y', 3.5);
+        sciText.setAttribute('text-anchor', 'middle');
+        sciText.setAttribute('font-size', '11px');
+        sciText.textContent = '🔬';
+
+        sciBadge.appendChild(sciBg);
+        sciBadge.appendChild(sciText);
+
+        gNode.appendChild(shadow);
+        gNode.appendChild(baseThicknessLeft);
+        gNode.appendChild(baseThicknessRight);
+        gNode.appendChild(baseTop);
+        gNode.appendChild(iconUse);
+        gNode.appendChild(idBadgeBg);
+        gNode.appendChild(idBadgeText);
+        gNode.appendChild(sciBadge);
+        gNode.appendChild(labelBg);
+        gNode.appendChild(label);
+        nodesLayer.appendChild(gNode);
+      });
+
+      // 5-3. 지도와 100% 동기화되는 도로 건설 카드 목록 갱신
+      renderCards();
+    }
+
+    // 6. 도로 건설 카드 관리 및 양방향 인터랙션 (기본 무작위 셔플 & 윈도우 스크롤 0% 간섭)
+    let cardSortMode = 'random';
+    let shuffledEdgeIds = [];
+
+    // Fisher-Yates 셔플: 참여자가 최저 비용 도로를 직접 찾아보도록 무작위 배열
+    function shuffleCurrentEdges() {
+      if (!currentGraph || !currentGraph.edges) return;
+      const ids = currentGraph.edges.map(e => e.id);
+      for (let i = ids.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [ids[i], ids[j]] = [ids[j], ids[i]];
+      }
+      shuffledEdgeIds = ids;
+    }
+
+    function updateSortButtonState() {
+      const randomBtn = document.getElementById('sortRandomBtn');
+      const costBtn = document.getElementById('sortCostBtn');
+      const nodeBtn = document.getElementById('sortNodeBtn');
+      if (randomBtn) randomBtn.classList.toggle('active', cardSortMode === 'random');
+      if (costBtn) costBtn.classList.toggle('active', cardSortMode === 'cost');
+      if (nodeBtn) nodeBtn.classList.toggle('active', cardSortMode === 'node');
+    }
+
+    function setCardSort(mode) {
+      if (mode === 'random') {
+        shuffleCurrentEdges(); // 무작위 셔플 버튼 누를 때마다 새로 섞음
+      }
+      cardSortMode = mode;
+      updateSortButtonState();
+      renderCards();
+    }
+
+    function renderCards() {
+      const grid = document.getElementById('cardsGrid');
+      if (!grid) return;
+
+      const scrollArea = document.getElementById('cardsScrollArea');
+      const prevScroll = scrollArea ? scrollArea.scrollTop : 0;
+
+      grid.innerHTML = '';
+
+      const countBadge = document.getElementById('cardsCountBadge');
+      if (countBadge) {
+        countBadge.textContent = \`총 \${currentGraph.edges.length}개 후보\`;
+      }
+
+      const nodeMap = new Map();
+      currentGraph.nodes.forEach(n => nodeMap.set(n.id, n));
+
+      // 3대 정렬 모드: (1) 무작위 셔플 (2) 건설비 오름차순 (3) 정점 순
+      let sortedEdges;
+      if (cardSortMode === 'random') {
+        if (!shuffledEdgeIds || shuffledEdgeIds.length !== currentGraph.edges.length) {
+          shuffleCurrentEdges();
+        }
+        const orderMap = new Map();
+        shuffledEdgeIds.forEach((id, idx) => orderMap.set(id, idx));
+        sortedEdges = [...currentGraph.edges].sort((a, b) => {
+          return (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0);
+        });
+      } else if (cardSortMode === 'cost') {
+        sortedEdges = [...currentGraph.edges].sort((a, b) => {
+          return a.weight - b.weight || a.id.localeCompare(b.id);
+        });
+      } else { // 'node'
+        sortedEdges = [...currentGraph.edges].sort((a, b) => {
+          const keyA = \`\${a.source}-\${a.target}\`;
+          const keyB = \`\${b.source}-\${b.target}\`;
+          return keyA.localeCompare(keyB);
+        });
+      }
+
+      let minCandidates = [];
+      if (mainPlayMode === 'LEARN') {
+        const unreviewed = currentGraph.edges.filter(e => !learnReviewedEdgeIds.includes(e.id));
+        minCandidates = getAvailableMinimumEdges(unreviewed);
+      }
+
+      sortedEdges.forEach(e => {
+        let isBuilt = false;
+        let isSkipped = false;
+        let isInspecting = false;
+        let isCandidate = false;
+
+        if (mainPlayMode === 'LEARN') {
+          isBuilt = learnAcceptedEdgeIds.includes(e.id);
+          isSkipped = learnSkippedEdgeIds.includes(e.id);
+          isInspecting = currentInspectingEdge && (currentInspectingEdge.id === e.id);
+          isCandidate = minCandidates.some(c => c.id === e.id);
+        } else {
+          isBuilt = selectedEdgeIds.includes(e.id);
+        }
+
+        const n1 = nodeMap.get(e.source);
+        const n2 = nodeMap.get(e.target);
+
+        let cardClass = 'road-card ';
+        let statusTag = '';
+        let actionHint = '';
+
+        if (mainPlayMode === 'LEARN') {
+          if (isBuilt) {
+            cardClass += 'built';
+            statusTag = '<span class="card-status-tag built">채택 완료 ✓</span>';
+            actionHint = '<span class="card-action-hint">MST 포함</span>';
+          } else if (isSkipped) {
+            cardClass += 'skipped';
+            statusTag = '<span class="card-status-tag" style="background:#FEE2E2; color:#B91C1C; border:1px solid #FCA5A5;">사이클 제외 ✕</span>';
+            actionHint = '<span class="card-action-hint">순환선 제외됨</span>';
+          } else if (isInspecting) {
+            cardClass += 'candidate-target';
+            statusTag = '<span class="card-status-tag" style="background:#FEF3C7; color:#92400E; border:1px solid #F59E0B;">검토 중 ⚡</span>';
+            actionHint = '<span class="card-action-hint">사이클 판단 중</span>';
+          } else if (isCandidate) {
+            cardClass += 'candidate-target';
+            statusTag = '<span class="card-status-tag" style="background:#FEF3C7; color:#92400E; border:1px solid #F59E0B;">검토 대상 ⭐</span>';
+            actionHint = '<span class="card-action-hint">클릭하여 검토</span>';
+          } else {
+            cardClass += 'unbuilt';
+            statusTag = '<span class="card-status-tag unbuilt">대기 중</span>';
+            actionHint = '<span class="card-action-hint">최저가 먼저 검토</span>';
+          }
+        } else {
+          cardClass += isBuilt ? 'built' : 'unbuilt';
+          statusTag = \`<span class="card-status-tag \${isBuilt ? 'built' : 'unbuilt'}">\${isBuilt ? '건설 완료 ✓' : '건설 대기'}</span>\`;
+          actionHint = \`<span class="card-action-hint">\${isBuilt ? '클릭 시 철거' : '클릭 시 건설'}</span>\`;
+        }
+
+        const card = document.createElement('div');
+        card.className = cardClass;
+        card.id = 'card-' + e.id;
+
+        card.innerHTML = \`
+          <div class="card-top">
+            <div class="card-nodes">
+              <span class="node-chip">\${e.source}</span>
+              <span style="color: #94A3B8; font-size: 0.8rem;">⇄</span>
+              <span class="node-chip">\${e.target}</span>
+            </div>
+            <div class="card-cost-badge">
+              \${e.weight}<span class="card-cost-unit">억</span>
+            </div>
+          </div>
+          <div class="card-mid">
+            <div class="card-road-name">\${e.name || '스마트 연결 도로'}</div>
+            <div class="card-facility-flow">\${n1 ? n1.name : e.source} ⇄ \${n2 ? n2.name : e.target}</div>
+          </div>
+          <div class="card-footer">
+            \${statusTag}
+            \${actionHint}
+          </div>
+        \`;
+
+        // 카드 상호작용
+        card.onclick = () => toggleEdge(e.id);
+        card.onmouseenter = () => highlightEdgeOnMap(e.id, true);
+        card.onmouseleave = () => highlightEdgeOnMap(e.id, false);
+
+        grid.appendChild(card);
+      });
+
+      // 스크롤 위치 보존 (카드 재렌더링 시 스크롤 점프 차단)
+      if (scrollArea) {
+        scrollArea.scrollTop = prevScroll;
+      }
+    }
+
+    // 카드 -> 지도 간선/뱃지 강조
+    function highlightEdgeOnMap(edgeId, isHighlight) {
+      const line = document.getElementById('line-' + edgeId);
+      if (line) line.classList.toggle('highlighted', isHighlight);
+
+      const badge = document.getElementById('badge-' + edgeId);
+      if (badge) badge.classList.toggle('highlighted', isHighlight);
+    }
+
+    // [핵심 해결] 지도 흔들림 원천 차단: 브라우저 윈도우 스크롤(scrollIntoView) 대신,
+    // 오직 우측 카드 패널 내부(#cardsScrollArea)의 scrollTop만 안전하게 계산하여 스크롤
+    function scrollCardIntoPanel(card) {
+      const container = document.getElementById('cardsScrollArea');
+      if (!container || !card) return;
+
+      const cardTop = card.offsetTop;
+      const cardBottom = cardTop + card.offsetHeight;
+      const containerTop = container.scrollTop;
+      const containerBottom = containerTop + container.clientHeight;
+
+      // 이미 스크롤 영역 안에 편안하게 노출 중이면 스크롤하지 않음 (불필요한 덜컹거림 방지)
+      if (cardTop >= containerTop + 10 && cardBottom <= containerBottom - 10) {
+        return;
+      }
+
+      // 화면(window)은 절대 건드리지 않고 카드 컨테이너 내부만 부드럽게 스크롤
+      if (cardTop < containerTop + 10) {
+        container.scrollTo({ top: Math.max(0, cardTop - 12), behavior: 'smooth' });
+      } else if (cardBottom > containerBottom - 10) {
+        container.scrollTo({ top: cardBottom - container.clientHeight + 14, behavior: 'smooth' });
+      }
+    }
+
+    // 지도 -> 카드 강조 & 내부 패널 스크롤 포커스 (지도는 1px도 안 움직임)
+    function highlightCard(edgeId, isHighlight) {
+      const card = document.getElementById('card-' + edgeId);
+      if (card) {
+        card.classList.toggle('highlighted', isHighlight);
+        if (isHighlight) {
+          scrollCardIntoPanel(card);
+        }
+      }
+    }
+
+    // 초기화: 1인용 모드 및 닉네임 인풋 기본 렌더링
+    selectGameMode(1);
+  </script>
+</body>
+</html>
