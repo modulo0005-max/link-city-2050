@@ -3519,7 +3519,7 @@
             stepNumber,
             edge,
             decision: 'ACCEPTED',
-            reason: \`[\${edge.source}]와 [\${edge.target}] 독립 시설 그룹을 연결하여 병합합니다. (사이클 없음)\`,
+            reason: `[${edge.source}]와 [${edge.target}] 독립 시설 그룹을 연결하여 병합합니다. (사이클 없음)`,
             createsCycle: false,
             currentMstEdges: [...currentMstEdges],
             currentTotalCost,
@@ -3531,7 +3531,7 @@
             stepNumber,
             edge,
             decision: 'SKIPPED',
-            reason: \`[\${edge.source}]와 [\${edge.target}]는 이미 다른 경로로 연결되어 있어 순환선(사이클)이 발생하므로 제외합니다.\`,
+            reason: `[${edge.source}]와 [${edge.target}]는 이미 다른 경로로 연결되어 있어 순환선(사이클)이 발생하므로 제외합니다.`,
             createsCycle: true,
             currentMstEdges: [...currentMstEdges],
             currentTotalCost,
@@ -3615,7 +3615,7 @@
       if (mode === 'FREE') {
         freeBox.style.display = 'block';
         learnBox.style.display = 'none';
-        startBtn.textContent = \`\${MODE_CONFIG[gameMode].name} 시작 🚀\`;
+        startBtn.textContent = `${MODE_CONFIG[gameMode].name} 시작 🚀`;
       } else {
         freeBox.style.display = 'none';
         learnBox.style.display = 'block';
@@ -3671,7 +3671,7 @@
       if (descEl) descEl.textContent = MODE_CONFIG[mode].desc;
 
       const startBtn = document.getElementById('startBtn');
-      if (startBtn) startBtn.textContent = \`\${MODE_CONFIG[mode].name} 시작 🚀\`;
+      if (startBtn) startBtn.textContent = `${MODE_CONFIG[mode].name} 시작 🚀`;
 
       renderPlayerInputs();
     }
@@ -3684,20 +3684,20 @@
       for (let i = 0; i < gameMode; i++) {
         const card = document.createElement('div');
         card.className = 'player-input-card';
-        card.innerHTML = \`
-          <span class="player-p-badge p\${i + 1}">P\${i + 1}</span>
-          <input type="text" class="player-name-input" id="player-input-\${i}" 
-            value="\${playerNames[i] || '플레이어 ' + (i + 1)}" 
-            placeholder="플레이어 \${i + 1} 이름" 
+        card.innerHTML = `
+          <span class="player-p-badge p${i + 1}">P${i + 1}</span>
+          <input type="text" class="player-name-input" id="player-input-${i}" 
+            value="${playerNames[i] || '플레이어 ' + (i + 1)}" 
+            placeholder="플레이어 ${i + 1} 이름" 
             maxlength="10"
-            onchange="updatePlayerName(\${i}, this.value)" />
-        \`;
+            onchange="updatePlayerName(${i}, this.value)" />
+        `;
         container.appendChild(card);
       }
     }
 
     function updatePlayerName(idx, val) {
-      playerNames[idx] = val.trim() || \`플레이어 \${idx + 1}\`;
+      playerNames[idx] = val.trim() || `플레이어 ${idx + 1}`;
     }
 
     function selectDifficulty(diff) {
@@ -3742,7 +3742,7 @@
       const playerText = document.getElementById('hudPlayerText');
       if (gameMode > 1) {
         playerBadge.style.display = 'inline-flex';
-        playerText.textContent = \`P\${currentPlayerIndex + 1} [\${playerNames[currentPlayerIndex]}]님의 차례 (\${currentPlayerIndex + 1} / \${gameMode})\`;
+        playerText.textContent = `P${currentPlayerIndex + 1} [${playerNames[currentPlayerIndex]}]님의 차례 (${currentPlayerIndex + 1} / ${gameMode})`;
       } else {
         playerBadge.style.display = 'none';
       }
@@ -3773,7 +3773,7 @@
       const mins = Math.floor(timerSeconds / 60);
       const secs = timerSeconds % 60;
       document.getElementById('hudTimer').textContent =
-        \`\${String(mins).padStart(2, '0')}:\${String(secs).padStart(2, '0')}\`;
+        `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
 
     function showAlert(text) {
@@ -3798,7 +3798,7 @@
       }
 
       document.getElementById('hudCost').textContent = totalCost + '억';
-      document.getElementById('hudEdges').textContent = \`\${currentCount} / \${targetCount}\`;
+      document.getElementById('hudEdges').textContent = `${currentCount} / ${targetCount}`;
     }
 
     // ==========================================
@@ -3868,19 +3868,19 @@
         if (e) currentCost += e.weight;
       }
       document.getElementById('hudCost').textContent = currentCost + '억';
-      document.getElementById('hudEdges').textContent = \`\${learnAcceptedEdgeIds.length} / \${targetCount}\`;
+      document.getElementById('hudEdges').textContent = `${learnAcceptedEdgeIds.length} / ${targetCount}`;
 
       // 대화형 바 진행 뱃지
-      document.getElementById('learnStepBadge').textContent = \`STEP \${learnStepNumber} • 탐욕적 후보 검토\`;
+      document.getElementById('learnStepBadge').textContent = `STEP ${learnStepNumber} • 탐욕적 후보 검토`;
       document.getElementById('learnProgressBadge').textContent = 
-        \`채택 \${learnAcceptedEdgeIds.length} / 목표 \${targetCount} (미검토: \${unreviewed.length}개)\`;
+        `채택 ${learnAcceptedEdgeIds.length} / 목표 ${targetCount} (미검토: ${unreviewed.length}개)`;
 
       // 안내 문구
       if (minCandidates.length > 0) {
         const minW = minCandidates[0].weight;
-        const candidateNames = minCandidates.map(c => \`[\${c.source}-\${c.target}]\`).join(', ');
+        const candidateNames = minCandidates.map(c => `[${c.source}-${c.target}]`).join(', ');
         document.getElementById('learnGuideMsg').innerHTML = 
-          \`💡 <strong>가장 비용이 낮은 도로(\${minW}억)</strong> 중 하나를 선택하세요: <span style="color:#0284C7; font-weight:800;">\${candidateNames}</span>\`;
+          `💡 <strong>가장 비용이 낮은 도로(${minW}억)</strong> 중 하나를 선택하세요: <span style="color:#0284C7; font-weight:800;">${candidateNames}</span>`;
       } else {
         document.getElementById('learnGuideMsg').textContent = '모든 후보 도로 검토가 완료되었습니다.';
       }
@@ -3907,7 +3907,7 @@
 
       if (!isLegalGreedyChoice) {
         const minW = minCandidates[0] ? minCandidates[0].weight : 0;
-        showAlert(\`⚠️ 크루스칼 알고리즘은 탐욕(Greedy) 방식으로 가장 비용이 저렴한 도로(\${minW}억)부터 순서대로 검토해야 합니다!\`);
+        showAlert(`⚠️ 크루스칼 알고리즘은 탐욕(Greedy) 방식으로 가장 비용이 저렴한 도로(${minW}억)부터 순서대로 검토해야 합니다!`);
         flashEdgeCandidateTargets(minCandidates);
         return;
       }
@@ -3918,7 +3918,7 @@
 
       document.getElementById('learnQuizBox').style.display = 'flex';
       document.getElementById('quizQuestionText').innerHTML = 
-        \`도로 <strong>[\${edge.source} - \${edge.target}] (\${edge.weight}억)</strong> 건설 시 <strong>순환선(사이클)</strong>이 발생할까요?\`;
+        `도로 <strong>[${edge.source} - ${edge.target}] (${edge.weight}억)</strong> 건설 시 <strong>순환선(사이클)</strong>이 발생할까요?`;
       document.getElementById('quizFeedbackBox').style.display = 'none';
 
       renderMap();
@@ -3960,20 +3960,20 @@
 
       if (isCorrect) {
         feedbackText.innerHTML = actualHasCycle
-          ? \`<strong>정답입니다!</strong> [\${edge.source}]와 [\${edge.target}]는 이미 다른 경로로 연결되어 있어 사이클(순환선)이 형성되므로 건너뜁니다(제외).\`
-          : \`<strong>정답입니다!</strong> [\${edge.source}]와 [\${edge.target}]는 서로 다른 독립 시설 그룹이므로 안전하게 채택합니다(사이클 없음)!\`;
+          ? `<strong>정답입니다!</strong> [${edge.source}]와 [${edge.target}]는 이미 다른 경로로 연결되어 있어 사이클(순환선)이 형성되므로 건너뜁니다(제외).`
+          : `<strong>정답입니다!</strong> [${edge.source}]와 [${edge.target}]는 서로 다른 독립 시설 그룹이므로 안전하게 채택합니다(사이클 없음)!`;
       } else {
         feedbackText.innerHTML = actualHasCycle
-          ? \`<strong>오답입니다:</strong> [\${edge.source}]와 [\${edge.target}]는 이미 간접적으로 연결되어 있어 사이클이 생깁니다. 도로를 건너뛰어야 합니다!\`
-          : \`<strong>오답입니다:</strong> [\${edge.source}]와 [\${edge.target}]는 아직 연결되지 않았으므로 꼭 채택해야 합니다!\`;
+          ? `<strong>오답입니다:</strong> [${edge.source}]와 [${edge.target}]는 이미 간접적으로 연결되어 있어 사이클이 생깁니다. 도로를 건너뛰어야 합니다!`
+          : `<strong>오답입니다:</strong> [${edge.source}]와 [${edge.target}]는 아직 연결되지 않았으므로 꼭 채택해야 합니다!`;
       }
       feedbackBox.style.display = 'flex';
 
       // 알고리즘 반영 (학습 결과 기록)
       const decision = actualHasCycle ? 'SKIPPED' : 'ACCEPTED';
       const reason = actualHasCycle
-        ? \`[\${edge.source}]와 [\${edge.target}]는 이미 다른 도로망으로 연결되어 있어 순환선(사이클) 발생 → 제외\`
-        : \`[\${edge.source}]와 [\${edge.target}] 독립 시설 그룹을 연결하여 병합 (사이클 없음) → 채택\`;
+        ? `[${edge.source}]와 [${edge.target}]는 이미 다른 도로망으로 연결되어 있어 순환선(사이클) 발생 → 제외`
+        : `[${edge.source}]와 [${edge.target}] 독립 시설 그룹을 연결하여 병합 (사이클 없음) → 채택`;
 
       if (actualHasCycle) {
         learnSkippedEdgeIds.push(edge.id);
@@ -4058,13 +4058,13 @@
       if (tabCount) tabCount.textContent = learnSteps.length;
 
       if (learnSteps.length === 0) {
-        tbody.innerHTML = \`
+        tbody.innerHTML = `
           <tr>
             <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
               아직 검토된 도로가 없습니다.
             </td>
           </tr>
-        \`;
+        `;
         return;
       }
 
@@ -4075,13 +4075,13 @@
           ? '<span class="log-badge-accept">채택 ✓</span>'
           : '<span class="log-badge-skip">제외 ✕</span>';
 
-        tr.innerHTML = \`
-          <td style="font-weight: 800; color: #0284C7;">#\${s.stepNumber}</td>
-          <td style="font-weight: 800;">\${s.edge.source}-\${s.edge.target}</td>
-          <td style="color: var(--amber); font-weight: 800;">\${s.edge.weight}억</td>
-          <td>\${badge}</td>
-          <td style="font-size: 0.8rem; color: #475569;">\${s.reason}</td>
-        \`;
+        tr.innerHTML = `
+          <td style="font-weight: 800; color: #0284C7;">#${s.stepNumber}</td>
+          <td style="font-weight: 800;">${s.edge.source}-${s.edge.target}</td>
+          <td style="color: var(--amber); font-weight: 800;">${s.edge.weight}억</td>
+          <td>${badge}</td>
+          <td style="font-size: 0.8rem; color: #475569;">${s.reason}</td>
+        `;
         tbody.appendChild(tr);
       });
     }
@@ -4219,8 +4219,8 @@
       const prevName = playerNames[currentPlayerIndex];
       const nextName = playerNames[currentPlayerIndex + 1];
 
-      document.getElementById('interPrevPlayerNotice').textContent = \`[\${prevName}] 님 건설 종료!\`;
-      document.getElementById('interNextPlayerName').textContent = \`P\${currentPlayerIndex + 2} [\${nextName}] 님\`;
+      document.getElementById('interPrevPlayerNotice').textContent = `[${prevName}] 님 건설 종료!`;
+      document.getElementById('interNextPlayerName').textContent = `P${currentPlayerIndex + 2} [${nextName}] 님`;
 
       showScreen('intermission');
     }
@@ -4293,12 +4293,12 @@
           resBadge.className = 'result-badge perfect';
           resBadge.textContent = '🏆 PERFECT CITY';
           resTitle.textContent = '완벽한 스마트시티 건설!';
-          resSubtitle.innerHTML = \`축하합니다! <strong>수학적 최적 비용(\${optimalMst.totalCost}억 원)</strong>으로 모든 친환경 인프라를 완벽히 개통했습니다!\`;
+          resSubtitle.innerHTML = `축하합니다! <strong>수학적 최적 비용(${optimalMst.totalCost}억 원)</strong>으로 모든 친환경 인프라를 완벽히 개통했습니다!`;
         } else if (rec.isCompleted) {
           resBadge.className = 'result-badge success';
           resBadge.textContent = '도시 연결 완료';
           resTitle.textContent = '도시 인프라 연결 성공!';
-          resSubtitle.innerHTML = \`모든 시설을 연결했으나 최적 비용(\${optimalMst.totalCost}억 원)보다 \${rec.cost - optimalMst.totalCost}억 원 더 소요되었습니다.<br/>더 스마트한 도로 조합에 다시 도전해 보세요!\`;
+          resSubtitle.innerHTML = `모든 시설을 연결했으나 최적 비용(${optimalMst.totalCost}억 원)보다 ${rec.cost - optimalMst.totalCost}억 원 더 소요되었습니다.<br/>더 스마트한 도로 조합에 다시 도전해 보세요!`;
         } else {
           resBadge.className = 'result-badge timeout';
           resBadge.textContent = '시간 초과';
@@ -4316,16 +4316,16 @@
         const ranked = rankAllPlayers(playerRecords);
         const champion = ranked[0];
 
-        document.getElementById('multiLeaderboardBadge').textContent = \`\${MODE_CONFIG[gameMode].icon} \${MODE_CONFIG[gameMode].name}\`;
+        document.getElementById('multiLeaderboardBadge').textContent = `${MODE_CONFIG[gameMode].icon} ${MODE_CONFIG[gameMode].name}`;
         document.getElementById('championName').textContent = champion.name;
         
         const champTimeM = Math.floor(champion.timeUsedSeconds / 60);
         const champTimeS = champion.timeUsedSeconds % 60;
-        const timeStr = \`\${champTimeM}분 \${champTimeS}초\`;
+        const timeStr = `${champTimeM}분 ${champTimeS}초`;
         document.getElementById('championStat').textContent = 
           champion.isCompleted 
-            ? \`총 건설비: \${champion.cost}억 원 \${champion.isPerfect ? '(PERFECT CITY ★)' : ''} • 소요 시간: \${timeStr}\`
-            : \`미완성 (연결 시설: \${champion.connectedNodesCount}개) • 투입 비용: \${champion.cost}억 원\`;
+            ? `총 건설비: ${champion.cost}억 원 ${champion.isPerfect ? '(PERFECT CITY ★)' : ''} • 소요 시간: ${timeStr}`
+            : `미완성 (연결 시설: ${champion.connectedNodesCount}개) • 투입 비용: ${champion.cost}억 원`;
 
         // 랭킹 리스트 동적 렌더링
         const listEl = document.getElementById('rankingsList');
@@ -4333,7 +4333,7 @@
 
         ranked.forEach(p => {
           const row = document.createElement('div');
-          row.className = \`rank-row-card rank-\${p.rank} \${!p.isCompleted ? 'uncompleted' : ''}\`;
+          row.className = `rank-row-card rank-${p.rank} ${!p.isCompleted ? 'uncompleted' : ''}`;
 
           const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : '🎖️';
           const tM = Math.floor(p.timeUsedSeconds / 60);
@@ -4348,30 +4348,30 @@
             statusBadge = '<span class="rank-status-pill timeout">시간 초과 (미완성)</span>';
           }
 
-          row.innerHTML = \`
+          row.innerHTML = `
             <div class="rank-badge-box">
-              <span class="rank-num-badge r\${Math.min(4, p.rank)}">\${p.rank}위</span>
-              <span style="font-size: 1.4rem;">\${medal}</span>
-              \${p.isTie ? '<span class="tie-tag">공동</span>' : ''}
+              <span class="rank-num-badge r${Math.min(4, p.rank)}">${p.rank}위</span>
+              <span style="font-size: 1.4rem;">${medal}</span>
+              ${p.isTie ? '<span class="tie-tag">공동</span>' : ''}
             </div>
 
             <div class="rank-player-info">
-              <div class="rank-player-name">\${p.name}</div>
-              <div class="rank-player-sub">P\${p.id} • 연결 시설: \${p.connectedNodesCount}개 / \${currentGraph.nodes.length}개</div>
+              <div class="rank-player-name">${p.name}</div>
+              <div class="rank-player-sub">P${p.id} • 연결 시설: ${p.connectedNodesCount}개 / ${currentGraph.nodes.length}개</div>
             </div>
 
             <div class="rank-stats-group">
               <div class="rank-stat-col">
                 <span class="label">총 건설비</span>
-                <span class="val" style="color: var(--amber);">\${p.cost}억</span>
+                <span class="val" style="color: var(--amber);">${p.cost}억</span>
               </div>
               <div class="rank-stat-col">
                 <span class="label">소요 시간</span>
-                <span class="val" style="color: #0284C7;">\${tM}분 \${tS}초</span>
+                <span class="val" style="color: #0284C7;">${tM}분 ${tS}초</span>
               </div>
-              <div>\${statusBadge}</div>
+              <div>${statusBadge}</div>
             </div>
-          \`;
+          `;
           listEl.appendChild(row);
         });
       }
@@ -4428,9 +4428,9 @@
         repDiffEl.style.color = '#059669';
         repBadgeEl.innerHTML = '<span class="diff-badge-highlight perfect">🏆 최적 MST 달성 (100% 최적해)</span>';
       } else if (playerRec.isCompleted) {
-        repDiffEl.textContent = \`+\${costDiff}억\`;
+        repDiffEl.textContent = `+${costDiff}억`;
         repDiffEl.style.color = '#D97706';
-        repBadgeEl.innerHTML = \`<span class="diff-badge-highlight gap">⚠️ +\${costDiff}억 차이 (개선 여지 있음)</span>\`;
+        repBadgeEl.innerHTML = `<span class="diff-badge-highlight gap">⚠️ +${costDiff}억 차이 (개선 여지 있음)</span>`;
       } else {
         repDiffEl.textContent = '미완성';
         repDiffEl.style.color = '#DC2626';
@@ -4447,7 +4447,7 @@
       }
       const maxLabel = document.getElementById('replayMaxStepLabel');
       if (maxLabel) {
-        maxLabel.textContent = \`END (Step \${maxSteps})\`;
+        maxLabel.textContent = `END (Step ${maxSteps})`;
       }
 
       // 기본 뷰: 나의 연결망 보기
@@ -4472,10 +4472,10 @@
 
       if (viewMode === 'player') {
         if (titleEl) titleEl.textContent = '👷 [나의 연결망] 건설 현황';
-        if (subEl) subEl.textContent = \`선택한 도로: \${(playerRec.selectedEdgeIds || []).length}개 • 총 비용: \${playerRec.cost}억\`;
+        if (subEl) subEl.textContent = `선택한 도로: ${(playerRec.selectedEdgeIds || []).length}개 • 총 비용: ${playerRec.cost}억`;
       } else {
         if (titleEl) titleEl.textContent = '🤖 [크루스칼 최적해] 최소 신장 트리(MST)';
-        if (subEl) subEl.textContent = \`최적 도로: \${optimalMst.edges.length}개 • 최소 비용: \${optimalMst.totalCost}억\`;
+        if (subEl) subEl.textContent = `최적 도로: ${optimalMst.edges.length}개 • 최소 비용: ${optimalMst.totalCost}억`;
       }
 
       renderReportMap();
@@ -4493,7 +4493,7 @@
       if (slider) slider.value = replayCurrentStep;
 
       const counter = document.getElementById('replayStepCounter');
-      if (counter) counter.textContent = \`Step \${replayCurrentStep} / \${totalSteps}\`;
+      if (counter) counter.textContent = `Step ${replayCurrentStep} / ${totalSteps}`;
 
       const infoBox = document.getElementById('replayInfoBox');
       const titleEl = document.getElementById('repMapHeaderTitle');
@@ -4501,9 +4501,9 @@
 
       if (replayCurrentStep === 0) {
         if (infoBox) {
-          infoBox.innerHTML = \`🏁 <strong>크루스칼 알고리즘 시작 준비:</strong> 모든 도로를 가중치(비용) 오름차순으로 정렬했습니다. [▶ 재생] 또는 [다음 단계]를 눌러 탐욕적 선택 과정을 확인하세요.\`;
+          infoBox.innerHTML = `🏁 <strong>크루스칼 알고리즘 시작 준비:</strong> 모든 도로를 가중치(비용) 오름차순으로 정렬했습니다. [▶ 재생] 또는 [다음 단계]를 눌러 탐욕적 선택 과정을 확인하세요.`;
         }
-        if (subEl) subEl.textContent = \`초기 상태 (0개 도로 채택)\`;
+        if (subEl) subEl.textContent = `초기 상태 (0개 도로 채택)`;
       } else {
         const stepObj = replayHistory.steps[replayCurrentStep - 1];
         const isAccept = (stepObj.decision === 'ACCEPTED');
@@ -4512,21 +4512,21 @@
           : '<span class="log-badge-skip">사이클 제외 ✕</span>';
 
         if (infoBox) {
-          infoBox.innerHTML = \`
+          infoBox.innerHTML = `
             <div style="margin-bottom: 4px;">
-              <strong>Step \${stepObj.stepNumber}: 도로 [\${stepObj.edge.source} - \${stepObj.edge.target}] (\${stepObj.edge.weight}억)</strong> — \${badge}
+              <strong>Step ${stepObj.stepNumber}: 도로 [${stepObj.edge.source} - ${stepObj.edge.target}] (${stepObj.edge.weight}억)</strong> — ${badge}
             </div>
             <div style="color: #475569; font-size: 0.88rem; margin-bottom: 4px;">
-              \${stepObj.reason}
+              ${stepObj.reason}
             </div>
             <div style="font-size: 0.82rem; font-weight: 700; color: #0284C7;">
-              현재 누적 MST 비용: \${stepObj.currentTotalCost}억 | 채택 도로: \${stepObj.currentMstEdges.length} / \${replayHistory.targetEdgeCount}개
-              \${stepObj.targetReached ? ' <strong style="color: #059669;">🎉 모든 시설 연결 완료 (MST 완성)!</strong>' : ''}
+              현재 누적 MST 비용: ${stepObj.currentTotalCost}억 | 채택 도로: ${stepObj.currentMstEdges.length} / ${replayHistory.targetEdgeCount}개
+              ${stepObj.targetReached ? ' <strong style="color: #059669;">🎉 모든 시설 연결 완료 (MST 완성)!</strong>' : ''}
             </div>
-          \`;
+          `;
         }
         if (subEl) {
-          subEl.textContent = \`채택: \${stepObj.currentMstEdges.length}개 / \${replayHistory.targetEdgeCount}개 • 누적: \${stepObj.currentTotalCost}억\`;
+          subEl.textContent = `채택: ${stepObj.currentMstEdges.length}개 / ${replayHistory.targetEdgeCount}개 • 누적: ${stepObj.currentTotalCost}억`;
         }
       }
 
@@ -4534,7 +4534,7 @@
         reportViewMode = 'replay';
         document.getElementById('btnViewMine').classList.remove('active');
         document.getElementById('btnViewOptimal').classList.remove('active');
-        if (titleEl) titleEl.textContent = \`▶️ [알고리즘 재생] Step \${replayCurrentStep} / \${totalSteps}\`;
+        if (titleEl) titleEl.textContent = `▶️ [알고리즘 재생] Step ${replayCurrentStep} / ${totalSteps}`;
       }
 
       renderReportMap();
@@ -4696,7 +4696,7 @@
 
         // 가중치 뱃지
         const gBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        gBadge.setAttribute('transform', \`translate(\${badgePos.x}, \${badgePos.y})\`);
+        gBadge.setAttribute('transform', `translate(${badgePos.x}, ${badgePos.y})`);
 
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         rect.setAttribute('x', -22);
@@ -4745,7 +4745,7 @@
       currentGraph.nodes.forEach(n => {
         const isConn = connectedNodeIds.has(n.id);
         const gNode = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        gNode.setAttribute('transform', \`translate(\${n.x}, \${n.y})\`);
+        gNode.setAttribute('transform', `translate(${n.x}, ${n.y})`);
 
         const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
         shadow.setAttribute('cx', 8);
@@ -4971,7 +4971,7 @@
         const gBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         gBadge.setAttribute('class', 'weight-badge');
         gBadge.setAttribute('id', 'badge-' + e.id);
-        gBadge.setAttribute('transform', \`translate(\${badgePos.x}, \${badgePos.y})\`);
+        gBadge.setAttribute('transform', `translate(${badgePos.x}, ${badgePos.y})`);
 
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         rect.setAttribute('x', -23);
@@ -5005,7 +5005,7 @@
         const isConn = connectedNodeIds.has(n.id);
         const gNode = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         gNode.setAttribute('class', 'node-group');
-        gNode.setAttribute('transform', \`translate(\${n.x}, \${n.y})\`);
+        gNode.setAttribute('transform', `translate(${n.x}, ${n.y})`);
         gNode.style.cursor = 'pointer';
         gNode.setAttribute('title', n.name + ' - 클릭하여 과학 원리 확인');
         gNode.onclick = (evt) => {
@@ -5154,7 +5154,7 @@
 
       const countBadge = document.getElementById('cardsCountBadge');
       if (countBadge) {
-        countBadge.textContent = \`총 \${currentGraph.edges.length}개 후보\`;
+        countBadge.textContent = `총 ${currentGraph.edges.length}개 후보`;
       }
 
       const nodeMap = new Map();
@@ -5177,8 +5177,8 @@
         });
       } else { // 'node'
         sortedEdges = [...currentGraph.edges].sort((a, b) => {
-          const keyA = \`\${a.source}-\${a.target}\`;
-          const keyB = \`\${b.source}-\${b.target}\`;
+          const keyA = `${a.source}-${a.target}`;
+          const keyB = `${b.source}-${b.target}`;
           return keyA.localeCompare(keyB);
         });
       }
@@ -5235,34 +5235,34 @@
           }
         } else {
           cardClass += isBuilt ? 'built' : 'unbuilt';
-          statusTag = \`<span class="card-status-tag \${isBuilt ? 'built' : 'unbuilt'}">\${isBuilt ? '건설 완료 ✓' : '건설 대기'}</span>\`;
-          actionHint = \`<span class="card-action-hint">\${isBuilt ? '클릭 시 철거' : '클릭 시 건설'}</span>\`;
+          statusTag = `<span class="card-status-tag ${isBuilt ? 'built' : 'unbuilt'}">${isBuilt ? '건설 완료 ✓' : '건설 대기'}</span>`;
+          actionHint = `<span class="card-action-hint">${isBuilt ? '클릭 시 철거' : '클릭 시 건설'}</span>`;
         }
 
         const card = document.createElement('div');
         card.className = cardClass;
         card.id = 'card-' + e.id;
 
-        card.innerHTML = \`
+        card.innerHTML = `
           <div class="card-top">
             <div class="card-nodes">
-              <span class="node-chip">\${e.source}</span>
+              <span class="node-chip">${e.source}</span>
               <span style="color: #94A3B8; font-size: 0.8rem;">⇄</span>
-              <span class="node-chip">\${e.target}</span>
+              <span class="node-chip">${e.target}</span>
             </div>
             <div class="card-cost-badge">
-              \${e.weight}<span class="card-cost-unit">억</span>
+              ${e.weight}<span class="card-cost-unit">억</span>
             </div>
           </div>
           <div class="card-mid">
-            <div class="card-road-name">\${e.name || '스마트 연결 도로'}</div>
-            <div class="card-facility-flow">\${n1 ? n1.name : e.source} ⇄ \${n2 ? n2.name : e.target}</div>
+            <div class="card-road-name">${e.name || '스마트 연결 도로'}</div>
+            <div class="card-facility-flow">${n1 ? n1.name : e.source} ⇄ ${n2 ? n2.name : e.target}</div>
           </div>
           <div class="card-footer">
-            \${statusTag}
-            \${actionHint}
+            ${statusTag}
+            ${actionHint}
           </div>
-        \`;
+        `;
 
         // 카드 상호작용
         card.onclick = () => toggleEdge(e.id);
